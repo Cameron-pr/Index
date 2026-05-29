@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <title>Bolus Calculator</title>
+ <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+ <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+ <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+ <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+ <style>
+   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+   body { background: #c8c8c8; font-family: 'Nunito', 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px 0; }
+   input[type=number]::-webkit-inner-spin-button,
+   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+   input[type=number] { -moz-appearance: textfield; }
+   ::-webkit-scrollbar { display: none; }
+ </style>
+</head>
+<body>
+ <div id="root"></div>
+ <script type="text/babel">
+   const OLIVE = "#8a9a2a";
+   const OLIVE_BG = "#f0f3e0";
+   const GRAY_TILE = "#e8e8e8";
+   const GRAY_BORDER = "#d0d0d0";
+   const TEXT_DARK = "#1a1a1a";
+   const TEXT_MED = "#555";
+   const TEXT_LIGHT = "#999";
+
+   const IconMenu = () => (
+     <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+       <rect y="0" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+       <rect y="6.75" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+       <rect y="13.5" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+     </svg>
+   );
+   const IconCalc = ({ active }) => (
+     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+       <rect x="1" y="1" width="26" height="26" rx="5" stroke={active ? "white" : OLIVE} strokeWidth="2" fill={active ? OLIVE : "white"}/>
+       <rect x="5" y="5" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+       <rect x="16" y="5" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+       <rect x="5" y="13" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+       <rect x="16" y="13" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+       <rect x="5" y="19" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+       <rect x="16" y="19" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+     </svg>
+   );
+   const IconNote = () => (
+     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+       <rect x="1" y="1" width="26" height="26" rx="5" stroke={OLIVE} strokeWidth="2" fill="white"/>
+       <line x1="7" y1="9" x2="21" y2="9" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+       <line x1="7" y1="14" x2="21" y2="14" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+       <line x1="7" y1="19" x2="15" y2="19" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+       <circle cx="22" cy="22" r="5" fill={OLIVE}/>
+       <line x1="22" y1="19.5" x2="22" y2="24.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+       <line x1="19.5" y1="22" x2="24.5" y2="22" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+     </svg>
+   );
+   const IconHourglass = () => (
+     <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
+       <path d="M2 2h14M2 20h14M4 2c0 5 5 8 5 9s-5 4-5 9M14 2c0 5-5 8-5 9s5 4 5 9" stroke={TEXT_MED} strokeWidth="1.8" strokeLinecap="round"/>
+     </svg>
+   );
+   const IconBasal = () => (
+     <svg width="6" height="20" viewBox="0 0 6 20" fill="none">
+       <rect x="0" y="4" width="6" height="16" rx="3" fill={OLIVE}/>
+       <rect x="1" y="0" width="4" height="6" rx="2" fill={OLIVE}/>
+     </svg>
+   );
+   const IconCloud = () => (
+     <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+       <path d="M17 14H5a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 16.5 7H17a3 3 0 0 1 0 6z" stroke={OLIVE} strokeWidth="1.5" fill="none"/>
+       <circle cx="7" cy="13" r="2" fill={OLIVE}/>
+       <path d="M7 13 L9 11" stroke="white" strokeWidth="1.2"/>
+     </svg>
+   );
+   const IconRefresh = () => (
+     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+       <path d="M3 10a7 7 0 1 1 1.5 4.3" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+       <path d="M3 14.5V10H7.5" stroke={OLIVE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+     </svg>
+   );
+
+   function App() {
+     const [screen, setScreen] = React.useState("dashboard");
+     const [carbs, setCarbs] = React.useState("");
+     const [bg, setBg] = React.useState("");
+     const [iob, setIob] = React.useState("0");
+     const [result, setResult] = React.useState(null);
+     const [carbRatio, setCarbRatio] = React.useState(10);
+     const [corrFactor, setCorrFactor] = React.useState(2.5);
+     const [targetBG, setTargetBG] = React.useState(5.5);
+
+     const calcBolus = () => {
+       const c = parseFloat(carbs) || 0;
+       const b = parseFloat(bg) || 0;
+       const i = parseFloat(iob) || 0;
+       const mealBolus = c / carbRatio;
+       const corr = b > targetBG ? (b - targetBG) / corrFactor : 0;
+       const total = Math.max(0, mealBolus + corr - i);
+       setResult({ meal: +mealBolus.toFixed(2), corr: +corr.toFixed(2), iob: i, total: +total.toFixed(1) });
+     };
+
+     const resetCalc = () => { setCarbs(""); setBg(""); setIob("0"); setResult(null); };
+
+     const bgStatus = (v) => {
+       const n = parseFloat(v);
+       if (!n) return null;
+       if (n < 4.0) return { label: "LOW", color: "#e53e3e" };
+       if (n <= 7.0) return { label: "IN RANGE", color: "#38a169" };
+       if (n <= 10.0) return { label: "HIGH", color: "#d97706" };
+       return { label: "VERY HIGH", color: "#e53e3e" };
+     };
+
+     const now = new Date();
+     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+     const dateStr = now.toLocaleDateString("en-GB");
+
+     return (
+       <div style={{minHeight:"100vh",background:"#c8c8c8",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px 0"}}>
+         <div style={{width:375,minHeight:780,background:"#f5f5f5",borderRadius:44,border:"10px solid #1a1a1a",boxShadow:"0 30px 80px rgba(0,0,0,0.5)",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+
+           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 24px 6px",background:"white",fontSize:12,color:TEXT_MED}}>
+             <span style={{fontWeight:700,fontSize:14,color:TEXT_DARK}}>{timeStr}</span>
+             <div style={{display:"flex",gap:6}}><span>▲▲▲</span><span>WiFi</span><span>🔋</span></div>
+           </div>
+
+           {screen === "dashboard" && (
+             <div style={{display:"flex",flexDirection:"column",flex:1,background:"#f5f5f5"}}>
+               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"white",borderBottom:`1px solid ${GRAY_BORDER}`}}>
+                 <button style={{background:"none",border:"none",cursor:"pointer",padding:4}}><IconMenu/></button>
+                 <div style={{display:"flex",alignItems:"center",gap:8}}>
+                   <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,#c084fc,#818cf8)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:14}}>M</div>
+                   <span style={{fontWeight:700,fontSize:15,color:TEXT_DARK}}>Millie Harman</span>
+                 </div>
+                 <div style={{display:"flex",gap:8}}>
+                   <button style={{background:"none",border:"none",cursor:"pointer",padding:4}} onClick={()=>setScreen("calculator")}><IconCalc active={false}/></button>
+                   <button style={{background:"none",border:"none",cursor:"pointer",padding:4}}><IconNote/></button>
+                 </div>
+               </div>
+               <div style={{background:GRAY_TILE,padding:"8px 16px",fontSize:13,fontWeight:800,color:TEXT_DARK,borderBottom:`1px solid ${GRAY_BORDER}`}}>Last values</div>
+               <div style={{background:"white",padding:"12px 16px",borderBottom:`1px solid ${GRAY_BORDER}`}}>
+                 <div style={{fontSize:12,fontWeight:700,color:TEXT_MED,marginBottom:8}}>Last blood glucose</div>
+                 <div style={{display:"flex",alignItems:"center",gap:6}}>
+                   <span style={{fontSize:22,fontWeight:300,letterSpacing:4}}>— — —</span>
+                   <span style={{fontSize:14,color:TEXT_MED,marginLeft:4}}>mmol/L</span>
+                 </div>
+               </div>
+               <div style={{background:"white",padding:"12px 16px",borderBottom:`1px solid ${GRAY_BORDER}`}}>
+                 <div style={{fontSize:12,fontWeight:700,color:TEXT_MED,marginBottom:8}}>Bolus delivery</div>
+                 <div style={{display:"flex",alignItems:"center",gap:6}}>
+                   <span style={{fontSize:22,fontWeight:300,letterSpacing:4}}>— — —</span>
+                   <span style={{fontSize:14,color:TEXT_MED,marginLeft:4}}>U</span>
+                 </div>
+               </div>
+               <div style={{display:"flex",borderBottom:`1px solid ${GRAY_BORDER}`}}>
+                 <div style={{background:"white",flex:1,padding:"12px 16px",borderRight:`1px solid ${GRAY_BORDER}`}}>
+                   <div style={{fontSize:12,fontWeight:700,color:TEXT_MED,marginBottom:8}}>Last basal</div>
+                   <div style={{display:"flex",alignItems:"center",gap:8}}>
+                     <IconBasal/>
+                     <span style={{fontSize:22,fontWeight:300,letterSpacing:4}}>— — —</span>
+                     <span style={{fontSize:14,color:TEXT_MED}}>U</span>
+                   </div>
+                 </div>
+                 <div style={{background:"white",flex:1,padding:"12px 16px"}}>
+                   <div style={{fontSize:12,fontWeight:700,color:TEXT_MED,marginBottom:8}}>Insulin on board</div>
+                   <div style={{display:"flex",alignItems:"center",gap:8}}>
+                     <IconHourglass/>
+                     <span style={{fontSize:22,fontWeight:300,letterSpacing:4}}>— — —</span>
+                     <span style={{fontSize:14,color:TEXT_MED}}>U</span>
+                   </div>
+                 </div>
+               </div>
+               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"white",borderTop:`1px solid ${GRAY_BORDER}`}}>
+                 <div style={{display:"flex",alignItems:"center",gap:8}}>
+                   <IconCloud/>
+                   <div>
+                     <div style={{fontSize:12,fontWeight:700,color:TEXT_MED}}>mylife Cloud</div>
+                     <div style={{fontSize:11,color:TEXT_LIGHT}}>{dateStr}  {timeStr}</div>
+                   </div>
+                 </div>
+                 <button style={{width:40,height:40,borderRadius:8,border:`2px solid ${OLIVE}`,background:"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><IconRefresh/></button>
+               </div>
+               <button onClick={()=>setScreen("calculator")} style={{margin:"12px 16px 0",padding:"14px",width:"calc(100% - 32px)",borderRadius:10,border:"none",background:OLIVE,color:"white",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+                 Open Bolus Calculator
+               </button>
+             </div>
+           )}
+
+           {screen === "calculator" && (
+             <div style={{display:"flex",flexDirection:"column",flex:1,background:"#f5f5f5"}}>
+               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",background:"white",borderBottom:`1px solid ${GRAY_BORDER}`}}>
+                 <button style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",alignItems:"center"}} onClick={()=>{setScreen("dashboard");resetCalc();}}>
+                   <svg width="22" height="18" viewBox="0 0 22 18" fill="none">
+                     <path d="M1 9h20M1 9L9 1M1 9l8 8" stroke={TEXT_DARK} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                   </svg>
+                 </button>
+                 <div style={{display:"flex",alignItems:"center",gap:8}}>
+                   <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,#c084fc,#818cf8)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:14}}>M</div>
+                   <span style={{fontWeight:700,fontSize:15,color:TEXT_DARK}}>Millie Harman</span>
+                 </div>
+                 <button style={{background:OLIVE_BG,border:"none",cursor:"pointer",padding:4,borderRadius:8}}><IconCalc active={true}/></button>
+               </div>
+               <div style={{background:GRAY_TILE,padding:"8px 16px",fontSize:13,fontWeight:800,color:TEXT_DARK,borderBottom:`1px solid ${GRAY_BORDER}`}}>Bolus Calculator</div>
+               <div style={{padding:"0 16px",overflowY:"auto",flex:1}}>
+
+                 <div style={{display:"flex",alignItems:"center",background:OLIVE_BG,borderRadius:10,margin:"10px 0",padding:"8px 10px",gap:4}}>
+                   {[
+                     {label:"Carb ratio",val:`${carbRatio}g/U`,dec:()=>setCarbRatio(r=>Math.max(1,r-1)),inc:()=>setCarbRatio(r=>r+1)},
+                     {label:"ISF",val:corrFactor,dec:()=>setCorrFactor(f=>Math.max(0.5,+(f-0.5).toFixed(1))),inc:()=>setCorrFactor(f=>+(f+0.5).toFixed(1))},
+                     {label:"Target BG",val:targetBG,dec:()=>setTargetBG(t=>Math.max(4,+(t-0.5).toFixed(1))),inc:()=>setTargetBG(t=>+(t+0.5).toFixed(1))},
+                   ].map((s,i)=>(
+                     <React.Fragment key={s.label}>
+                       {i>0 && <div style={{width:1,height:36,background:GRAY_BORDER}}/>}
+                       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                         <span style={{fontSize:10,color:TEXT_MED,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>{s.label}</span>
+                         <div style={{display:"flex",alignItems:"center",gap:6}}>
+                           <button onClick={s.dec} style={{width:22,height:22,borderRadius:6,border:`1.5px solid ${OLIVE}`,background:"white",color:OLIVE,fontSize:14,fontWeight:700,cursor:"pointer"}}>−</button>
+                           <span style={{fontSize:13,fontWeight:800,color:OLIVE,minWidth:36,textAlign:"center"}}>{s.val}</span>
+                           <button onClick={s.inc} style={{width:22,height:22,borderRadius:6,border:`1.5px solid ${OLIVE}`,background:"white",color:OLIVE,fontSize:14,fontWeight:700,cursor:"pointer"}}>+</button>
+                         </div>
+                       </div>
+                     </React.Fragment>
+                   ))}
+                 </div>
+
+                 <div style={{background:"white",borderRadius:12,marginBottom:10,padding:"14px",border:`1px solid ${GRAY_BORDER}`,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                     <span style={{fontSize:18}}>🩸</span>
+                     <span style={{fontSize:13,fontWeight:700,color:TEXT_MED,flex:1}}>Blood glucose</span>
+                     {bg && bgStatus(bg) && <span style={{fontSize:10,fontWeight:800,color:"white",padding:"2px 7px",borderRadius:20,background:bgStatus(bg).color}}>{bgStatus(bg).label}</span>}
+                   </div>
+                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                     <button onClick={()=>setBg(v=>Math.max(0,+(parseFloat(v||0)-0.5)).toFixed(1))} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>−</button>
+                     <div style={{flex:1,display:"flex",alignItems:"baseline",gap:6,borderBottom:`2px solid ${OLIVE}`,paddingBottom:4,justifyContent:"center"}}>
+                       <input type="number" value={bg} onChange={e=>setBg(e.target.value)} placeholder="—" step="0.1"
+                         style={{background:"transparent",border:"none",outline:"none",fontSize:32,fontWeight:700,width:80,textAlign:"right",color:bg&&bgStatus(bg)?bgStatus(bg).color:TEXT_DARK}}/>
+                       <span style={{fontSize:14,color:TEXT_MED,fontWeight:600}}>mmol/L</span>
+                     </div>
+                     <button onClick={()=>setBg(v=>+(parseFloat(v||0)+0.5).toFixed(1).toString())} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>+</button>
+                   </div>
+                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                     {[3.9,5.0,6.5,8.0,10.0,13.0].map(v=>(
+                       <button key={v} onClick={()=>setBg(v.toString())} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_MED,fontSize:12,fontWeight:700,cursor:"pointer"}}>{v}</button>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div style={{background:"white",borderRadius:12,marginBottom:10,padding:"14px",border:`1px solid ${GRAY_BORDER}`,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                     <span style={{fontSize:18}}>🍞</span>
+                     <span style={{fontSize:13,fontWeight:700,color:TEXT_MED}}>Carbohydrates</span>
+                   </div>
+                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                     <button onClick={()=>setCarbs(v=>Math.max(0,(parseFloat(v||0)-5)).toString())} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>−</button>
+                     <div style={{flex:1,display:"flex",alignItems:"baseline",gap:6,borderBottom:`2px solid ${OLIVE}`,paddingBottom:4,justifyContent:"center"}}>
+                       <input type="number" value={carbs} onChange={e=>setCarbs(e.target.value)} placeholder="—"
+                         style={{background:"transparent",border:"none",outline:"none",fontSize:32,fontWeight:700,color:TEXT_DARK,width:80,textAlign:"right"}}/>
+                       <span style={{fontSize:14,color:TEXT_MED,fontWeight:600}}>g</span>
+                     </div>
+                     <button onClick={()=>setCarbs(v=>(parseFloat(v||0)+5).toString())} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>+</button>
+                   </div>
+                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                     {[10,20,30,45,60,80].map(v=>(
+                       <button key={v} onClick={()=>setCarbs(v.toString())} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_MED,fontSize:12,fontWeight:700,cursor:"pointer"}}>{v}g</button>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div style={{background:"white",borderRadius:12,marginBottom:10,padding:"14px",border:`1px solid ${GRAY_BORDER}`,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
+                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                     <span style={{fontSize:18}}>⏳</span>
+                     <span style={{fontSize:13,fontWeight:700,color:TEXT_MED}}>Insulin on board</span>
+                   </div>
+                   <div style={{display:"flex",alignItems:"center",gap:10}}>
+                     <button onClick={()=>setIob(v=>Math.max(0,+(parseFloat(v||0)-0.5)).toFixed(1))} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>−</button>
+                     <div style={{flex:1,display:"flex",alignItems:"baseline",gap:6,borderBottom:`2px solid ${OLIVE}`,paddingBottom:4,justifyContent:"center"}}>
+                       <input type="number" value={iob} onChange={e=>setIob(e.target.value)} placeholder="0" step="0.1"
+                         style={{background:"transparent",border:"none",outline:"none",fontSize:32,fontWeight:700,color:TEXT_DARK,width:80,textAlign:"right"}}/>
+                       <span style={{fontSize:14,color:TEXT_MED,fontWeight:600}}>U</span>
+                     </div>
+                     <button onClick={()=>setIob(v=>+(parseFloat(v||0)+0.5).toFixed(1).toString())} style={{width:40,height:40,borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:GRAY_TILE,color:TEXT_DARK,fontSize:22,cursor:"pointer",flexShrink:0}}>+</button>
+                   </div>
+                 </div>
+
+                 <button onClick={calcBolus} style={{width:"100%",padding:"15px",borderRadius:12,border:"none",background:OLIVE,color:"white",fontSize:16,fontWeight:800,cursor:"pointer",marginBottom:12,boxShadow:`0 4px 14px ${OLIVE}55`}}>
+                   Calculate
+                 </button>
+
+                 {result && (
+                   <div style={{background:"white",borderRadius:12,padding:"16px",marginBottom:10,border:`2px solid ${OLIVE}`,boxShadow:`0 4px 20px ${OLIVE}22`}}>
+                     <div style={{fontSize:11,fontWeight:800,color:TEXT_MED,textTransform:"uppercase",letterSpacing:"0.8px",textAlign:"center",marginBottom:6}}>Recommended bolus dose</div>
+                     <div style={{fontSize:52,fontWeight:800,color:OLIVE,textAlign:"center",lineHeight:1,marginBottom:12,letterSpacing:"-1px"}}>
+                       {result.total} <span style={{fontSize:24,fontWeight:600}}>U</span>
+                     </div>
+                     <div style={{background:GRAY_TILE,borderRadius:10,padding:"10px 14px"}}>
+                       {[
+                         {label:"🍞 Meal bolus",val:`${result.meal} U`,color:TEXT_DARK},
+                         {label:"🩸 Correction",val:`${result.corr} U`,color:TEXT_DARK},
+                         {label:"⏳ IOB deducted",val:`−${result.iob} U`,color:"#e53e3e"},
+                       ].map(r=>(
+                         <div key={r.label} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:TEXT_MED,padding:"3px 0"}}>
+                           <span>{r.label}</span>
+                           <span style={{fontWeight:700,color:r.color}}>{r.val}</span>
+                         </div>
+                       ))}
+                       <div style={{height:1,background:GRAY_BORDER,margin:"6px 0"}}/>
+                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:700}}>
+                         <span style={{color:TEXT_DARK}}>Total</span>
+                         <span style={{color:OLIVE,fontSize:17}}>{result.total} U</span>
+                       </div>
+                     </div>
+                     {result.total > 15 && (
+                       <div style={{background:"#fff5f5",border:"1px solid #fc8181",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#c53030",fontWeight:600,marginTop:10}}>
+                         ⚠️ High dose — verify with your healthcare provider
+                       </div>
+                     )}
+                     <div style={{display:"flex",gap:8,marginTop:12}}>
+                       <button onClick={resetCalc} style={{flex:1,padding:"11px",borderRadius:10,border:`1.5px solid ${GRAY_BORDER}`,background:"white",color:TEXT_DARK,fontSize:14,fontWeight:700,cursor:"pointer"}}>Reset</button>
+                       <button style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:OLIVE,color:"white",fontSize:14,fontWeight:700,cursor:"pointer"}}>Confirm &amp; Log</button>
+                     </div>
+                   </div>
+                 )}
+
+                 <div style={{fontSize:10,color:TEXT_LIGHT,textAlign:"center",lineHeight:1.6,padding:"8px 4px 20px"}}>
+                   ⚕ This calculator is a decision support tool only. Always confirm with your diabetes care team.
+                 </div>
+               </div>
+             </div>
+           )}
+         </div>
+       </div>
+     );
+   }
+
+   ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ </script>
+</body>
+</html>

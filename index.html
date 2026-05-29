@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bolus Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #c8c8c8; font-family: 'Nunito', 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px 0; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const OLIVE = "#8a9a2a";
+    const OLIVE_BG = "#f0f3e0";
+    const GRAY_TILE = "#e8e8e8";
+    const GRAY_BORDER = "#d0d0d0";
+    const TEXT_DARK = "#1a1a1a";
+    const TEXT_MED = "#555";
+    const TEXT_LIGHT = "#999";
+
+    const IconMenu = () => (
+      <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+        <rect y="0" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+        <rect y="6.75" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+        <rect y="13.5" width="22" height="2.5" rx="1.25" fill={TEXT_DARK}/>
+      </svg>
+    );
+    const IconCalc = ({ active }) => (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="1" y="1" width="26" height="26" rx="5" stroke={active ? "white" : OLIVE} strokeWidth="2" fill={active ? OLIVE : "white"}/>
+        <rect x="5" y="5" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+        <rect x="16" y="5" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+        <rect x="5" y="13" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+        <rect x="16" y="13" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+        <rect x="5" y="19" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+        <rect x="16" y="19" width="7" height="5" rx="1" fill={active ? "white" : OLIVE}/>
+      </svg>
+    );
+    const IconNote = () => (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="1" y="1" width="26" height="26" rx="5" stroke={OLIVE} strokeWidth="2" fill="white"/>
+        <line x1="7" y1="9" x2="21" y2="9" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="7" y1="14" x2="21" y2="14" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="7" y1="19" x2="15" y2="19" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="22" cy="22" r="5" fill={OLIVE}/>
+        <line x1="22" y1="19.5" x2="22" y2="24.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+        <line x1="19.5" y1="22" x2="24.5" y2="22" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    );
+    const IconHourglass = () => (
+      <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
+        <path d="M2 2h14M2 20h14M4 2c0 5 5 8 5 9s-5 4-5 9M14 2c0 5-5 8-5 9s5 4 5 9" stroke={TEXT_MED} strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    );
+    const IconBasal = () => (
+      <svg width="6" height="20" viewBox="0 0 6 20" fill="none">
+        <rect x="0" y="4" width="6" height="16" rx="3" fill={OLIVE}/>
+        <rect x="1" y="0" width="4" height="6" rx="2" fill={OLIVE}/>
+      </svg>
+    );
+    const IconCloud = () => (
+      <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+        <path d="M17 14H5a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 16.5 7H17a3 3 0 0 1 0 6z" stroke={OLIVE} strokeWidth="1.5" fill="none"/>
+        <circle cx="7" cy="13" r="2" fill={OLIVE}/>
+        <path d="M7 13 L9 11" stroke="white" strokeWidth="1.2"/>
+      </svg>
+    );
+    const IconRefresh = () => (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 10a7 7 0 1 1 1.5 4.3" stroke={OLIVE} strokeWidth="2" strokeLinecap="round"/>
+        <path d="M3 14.5V10H7.5" stroke={OLIVE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    );
+
+    function App() {
+      const [screen, setScreen] = React.useState("dashboard");
+      const [carbs, setCarbs] = React.useState("");
+      const [bg, setBg] = React.useState("");
+      const [iob, setIob] = React.useState("0");
+      const [result, setResult] = React.useState(null);
+      const [carbRatio, setCarbRatio] = React.useState(10);
+      const [corrFactor, setCorrFactor] = React.useState(2.5);
+      const [targetBG, setTargetBG] = React.useState(5.5);
+
+      const calcBolus = () => {
+        const c = parseFloat(carbs) || 0;
+        const b = parseFloat(bg) || 0;
+        const i = parseFloat(iob) || 0;
+        const mealBolus = c / carbRatio;
+        const corr = b > targetBG ? (b - targetBG) / corrFactor : 0;
+        const total = Math.max(0, mealBolus + corr - i);
+        setResult({ meal: +mealBolus.toFixed(2), corr: +corr.toFixed(2), iob: i, total: +total.toFixed(1) });
+      };
+
+      const resetCalc = () => { setCarbs(""); setBg(""); setIob("0"); setResult(null); };
+
+      const bgStatus = (v) => {
+        const n = parseFloat(v);
+        if (!n) return null;
+        if (n < 4.0) return { label: "LOW", color: "#e53e3e" };
+        if (n <= 7.0) return { label: "IN RANGE", color: "#38a169" };
+        if (n <= 10.0) return { label: "HIGH", color: "#d97706" };
+        return { label: "VERY HIGH", color: "#e53e3e" };
+      };
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const dateStr = now.toLocaleDateString("en-GB");
+
+      return (
+        <div style={{minHeight:"100vh",background:"#c8c8c8",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px 0"}}>
+          <div style={{width:375,minHeight:780,background:"#f5f5f5",borderRadius:44,border:"10px solid #1a1a1a",boxShadow:"0 30px 80px rgba(0,0,0,0.5)",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 24px 

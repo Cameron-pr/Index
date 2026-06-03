@@ -1,19 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Lucky Reels</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>* { margin: 0; padding: 0; box-sizing: border-box; }</style>
+  <style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#05050e;}</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel" src="App.jsx"></script>
-  <script type="text/babel">
-    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(LuckyReels));
-  </script>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script>
+const {useState,useEffect,useRef,useCallback,createElement:h,Fragment} = React;
+
+const SYM=[
+  {id:"cherry",  e:"\uD83C\uDF52",base:3,  w:28},
+  {id:"lemon",   e:"\uD83C\uDF4B",base:5,  w:24},
+  {id:"grape",   e:"\uD83C\uDF47",base:8,  w:18},
+  {id:"bell",    e:"\uD83D\uDD14",base:14, w:13},
+  {id:"star",    e:"\u2B50",      base:25, w:8 },
+  {id:"diamond", e:"\uD83D\uDC8E",base:60, w:5 },
+  {id:"seven",   e:"7\uFE0F\u20E3",base:150,w:3},
+  {id:"mega",    e:"\uD83C\uDF1F",base:500,w:1 },
+];
+
+function wpick(lv){
+  const ws=SYM.map((s,i)=>Math.max(0.3,s.w-i*lv*0.35));
+  const tot=ws.reduce((a,b)=>a+b,0);
+  let r=Math.random()*tot;
+  for(let i=0;i<SYM.length;i++){r-=ws[i];if(r<=0)return i;}
+  return 0;
+}
+
+function getWinLines(sz){
+  const lines=[];
+  const cell=(r,c)=>r*sz+c;
+  for(let r=0;r<sz;r++) lines.push({name:"Row "+(r+1),zz:false,cells:Array.from({length:sz},(_,c)=>cell(r,c))});
+  for(let c=0;c<sz;c++) lines.push({name:"Col "+(c+1),zz:false,cells:Array.from({length:sz},(_,r)=>cell(r,c))});
+  for(let sr=0;sr<=sz-3;sr++){
+    for(let sc=0;sc<=sz-3;sc++){
+      if(sr>0&&sc>0)continue;
+      const len=Math.min(sz-sr,sz-sc);
+      if(len<3)continue;
+      lines.push({name:"Diag\u2198",zz:false,cells:Array.from({length:len},(_,i)=>cell(sr+i,sc+i))});
+    }
+  }
+  for(let sr=0;sr<=sz-3;sr++){
+    for(let sc=sz-1;sc>=2;sc--){
+      if(sr>0&&sc<sz-1)continue;
+      const len=Math.min(sz-sr,sc+1);
+      if(len<3)continue;
+      lines.push({name:"Diag\u2199",zz:false,cells:Array.from({length:len},(_,i)=>cell(sr+i,sc-i))});
+    }
+  }
+  for(let tr=0;tr<sz-1;tr++){
+    const rA=tr,rB=tr+1;
+    lines.push({name:"Zig "+(rA+1)+"-"+(rB+1)+"A",zz:true,cells:Array.from({length:sz},(_,c)=>cell(c%2===0?rA:rB,c))});
+    lines.push({name:"Zig "+(rA+1)+"-"+(rB+1)+"B",zz:true,cells:Array.from({length:sz},(_,c)=>cell(c%2===0?rB:rA,c))});
+  }
+  return lines;
+}
+
+function runsOnLine(cells,grid,zz){
+  const min=zz?5:3;
+  const runs=[];
+  let i=0;
+  while(i<cells.length){
+    const sym=grid[cells[i]];
+    let j=i+1;
+    while(j<cells.length&&grid[cells[j]]===sym)j++;
+    if(j-i>=min) runs.push({symId:sym,cells:cells.slice(i,j)});
+    i=j;
+  }
+  return runs;
+}
+
+function calcWins(grid,sz,mLv,jLv){
+  const mult=1+mLv*0.6;
+  const wins=[];
+  const seen=new Set();
+  for(const line of getWinLines(sz)){
+    for(const run of runsOnLine(line.cells,grid,line.zz)){
+      const key=run.cells.slice().sort((a,b)=>a-b).join(",")+":"+run.symId;
+      if(seen.has(key))continue;
+      seen.add(key);
+      const sym=SYM.find(s=>s.id===run.symId);
+      const count=run.cells.length;
+      const isJack=count>=sz;
+      const isMega=count===sz*sz;
+      let pay=sym.base*count*mult*sz;
+      if(isJack&&!isMega)pay*=10+jLv*5;
+      if(isMega)pay*=50+jLv*20;
+      wins.push({lineName:line.name,symId:run.symId,count,isJack,isMega,pay:Math.floor(pay),cells:run.cells});
+    }
+  }
+  if(grid.length===sz*sz&&grid.every(id=>id===grid[0])){
+    const key="MEGA:"+grid[0];
+    if(!seen.has(key)){
+      seen.add(key);
+      const sym=SYM.find(s=>s.id===grid[0]);
+      const pay=Math.floor(sym.base*sz*sz*mult*(50+jLv*20));
+      wins.push({lineName:"MEGA JACKPOT",symId:grid[0],count:sz*sz,isJack:true,isMega:true,pay,cells:[...Array(sz*sz).keys()]});
+    }
+  }
+  wins.sort((a,b)=>a.pay-b.pay);
+  const hitCells=new Set(wins.flatMap(w=>w.cells));
+  return {wins,hitCells};
+}
+
+const UPGRADES=[
+  {id:"luck",      name:"Lucky Charm",   desc:"Rare symbols more likely",              emoji:"\uD83C\uDF40",baseCost:30,      costMult:2.2,maxLevel:20,color:"#4ade80"},
+  {id:"multiplier",name:"Golden Touch",  desc:"Multiply all payouts",                  emoji:"\u2728",      baseCost:80,      costMult:2.5,maxLevel:15,color:"#facc15"},
+  {id:"speed",     name:"Turbo Spin",    desc:"Faster reels & passive ticks",          emoji:"\u26A1",      baseCost:150,     costMult:2.8,maxLevel:10,color:"#38bdf8"},
+  {id:"jackpot",   name:"Jackpot Boost", desc:"Jackpot pays massively more",           emoji:"\uD83D\uDCB0",baseCost:300,     costMult:3,  maxLevel:10,color:"#fb923c"},
+  {id:"passive",   name:"Lucky Trickle", desc:"Earn % of best win per second",         emoji:"\uD83D\uDCB8",baseCost:200,     costMult:2.5,maxLevel:15,color:"#34d399"},
+  {id:"grid6",     name:"6x6 Grid",      desc:"36 cells",                              emoji:"\uD83D\uDD32",baseCost:5000,    costMult:1,  maxLevel:1, color:"#f472b6"},
+  {id:"grid7",     name:"7x7 Grid",      desc:"49 cells",                              emoji:"\uD83D\uDD33",baseCost:50000,   costMult:1,  maxLevel:1, color:"#e879f9"},
+  {id:"grid8",     name:"8x8 Grid",      desc:"64 cells",                              emoji:"\uD83D\uDFEA",baseCost:500000,  costMult:1,  maxLevel:1, color:"#c026d3"},
+  {id:"grid9",     name:"9x9 Grid",      desc:"81 cells",                              emoji:"\uD83D\uDFEB",baseCost:5000000, costMult:1,  maxLevel:1, color:"#9333ea"},
+  {id:"grid10",    name:"10x10 Grid",    desc:"100 cells - ultimate",                  emoji:"\uD83C\uDFC6",baseCost:50000000,costMult:1,  maxLevel:1, color:"#fbbf24"},
+];
+
+function upgCost(upg,lv){return Math.floor(upg.baseCost*Math.pow(upg.costMult,lv));}
+function getSize(um){
+  if(um.grid10>=1)return 10;if(um.grid9>=1)return 9;if(um.grid8>=1)return 8;
+  if(um.grid7>=1)return 7;if(um.grid6>=1)return 6;return 5;
+}
+function fmt(n){
+  if(n>=1e12)return(n/1e12).toFixed(2)+"T";if(n>=1e9)return(n/1e9).toFixed(2)+"B";
+  if(n>=1e6)return(n/1e6).toFixed(2)+"M";if(n>=1e3)return(n/1e3).toFixed(1)+"K";
+  return Math.floor(n).toString();
+}
+
+const STRIP_LEN=22;
+
+function ReelStrip({strip,finalIdx,spinning,highlight,cellSz}){
+  const fSize=Math.max(11,Math.floor(cellSz*0.5));
+  const innerRef=useRef(null);
+  useEffect(()=>{
+    if(!innerRef.current)return;
+    if(spinning){
+      innerRef.current.style.transition="none";
+      innerRef.current.style.top="0px";
+    } else {
+      innerRef.current.style.transition="top 0.55s cubic-bezier(0.25,0.8,0.35,1)";
+      innerRef.current.style.top=-(finalIdx*cellSz)+"px";
+    }
+  },[spinning,finalIdx,cellSz]);
+
+  return h("div",{style:{
+    width:cellSz,height:cellSz,
+    borderRadius:Math.max(4,Math.floor(cellSz*0.13)),
+    background:highlight?"linear-gradient(135deg,rgba(251,191,36,0.28),rgba(245,158,11,0.15))":"linear-gradient(160deg,#13132b,#0d0d1f)",
+    border:highlight?"2px solid #fbbf24":"2px solid #1e1e3a",
+    boxShadow:highlight?"0 0 16px rgba(251,191,36,0.4)":"inset 0 2px 6px rgba(0,0,0,0.6)",
+    overflow:"hidden",position:"relative",flexShrink:0,
+  }},
+    h("div",{ref:innerRef,style:{position:"absolute",top:0,width:"100%"}},
+      strip.map((e,i)=>h("div",{key:i,style:{
+        height:cellSz,display:"flex",alignItems:"center",justifyContent:"center",
+        fontSize:fSize,lineHeight:1,
+      }},e))
+    )
+  );
+}
+
+function WinLineOverlay({wins,visibleCount,size,cellSz,gap,lineDrawMs,lineStaggerMs}){
+  const colors=["#f472b6","#fb923c","#facc15","#4ade80","#38bdf8","#a78bfa","#f87171","#34d399"];
+  const totalW=size*cellSz+(size-1)*gap;
+  const totalH=size*cellSz+(size-1)*gap;
+  const drawS=(lineDrawMs/1000).toFixed(3);
+  function cc(idx){
+    const row=Math.floor(idx/size),col=idx%size;
+    return{x:col*(cellSz+gap)+cellSz/2,y:row*(cellSz+gap)+cellSz/2};
+  }
+  return h("svg",{
+    style:{position:"absolute",top:0,left:0,width:totalW,height:totalH,pointerEvents:"none",overflow:"visible",zIndex:10},
+    viewBox:"0 0 "+totalW+" "+totalH,
+  },
+    wins.slice(0,visibleCount).map((win,wi)=>{
+      const color=colors[wi%colors.length];
+      const pts=win.cells.map(idx=>cc(idx));
+      const ptStr=pts.map(p=>p.x+","+p.y).join(" ");
+      const delay=(wi*lineStaggerMs/1000).toFixed(3);
+      const mid=pts[Math.floor(pts.length/2)];
+      const label="+"+fmt(win.pay);
+      const lblW=Math.max(40,label.length*7.5);
+      return h("g",{key:wi},
+        h("polyline",{points:ptStr,fill:"none",stroke:color,strokeWidth:7,strokeLinecap:"round",strokeLinejoin:"round",opacity:0.15,
+          style:{strokeDasharray:3000,strokeDashoffset:3000,animation:"drawLine "+drawS+"s ease-out "+delay+"s forwards"}}),
+        h("polyline",{points:ptStr,fill:"none",stroke:color,strokeWidth:2.5,strokeLinecap:"round",strokeLinejoin:"round",opacity:0.92,
+          style:{strokeDasharray:3000,strokeDashoffset:3000,animation:"drawLine "+drawS+"s ease-out "+delay+"s forwards"}}),
+        pts.map((p,pi)=>h("circle",{key:pi,cx:p.x,cy:p.y,r:cellSz*0.13,fill:color,opacity:0.95,
+          style:{transform:"scale(0)",transformOrigin:p.x+"px "+p.y+"px",
+            animation:"popDot "+drawS+"s ease-out "+(parseFloat(delay)+parseFloat(drawS)*0.6).toFixed(3)+"s forwards"}})),
+        h("g",{style:{opacity:0,animation:"fadeInLabel "+drawS+"s ease-out "+(parseFloat(delay)+parseFloat(drawS)*0.8).toFixed(3)+"s forwards"}},
+          h("rect",{x:mid.x-lblW/2,y:mid.y-11,width:lblW,height:19,rx:5,fill:"#050510",fillOpacity:0.88,stroke:color,strokeWidth:1.2}),
+          h("text",{x:mid.x,y:mid.y+4.5,textAnchor:"middle",
+            fontSize:Math.max(9,Math.min(12,cellSz*0.24)),fontWeight:"800",
+            fontFamily:"'Courier New',monospace",fill:color},label)
+        )
+      );
+    })
+  );
+}
+
+const PREREQS={grid7:"grid6",grid8:"grid7",grid9:"grid8",grid10:"grid9"};
+
+function LuckyReels(){
+  const [coins,setCoins]=useState(50);
+  const [totalEarned,setTotal]=useState(50);
+  const [spins,setSpins]=useState(0);
+  const [upgMap,setUpgMap]=useState({luck:0,multiplier:0,speed:0,jackpot:0,passive:0,grid6:0,grid7:0,grid8:0,grid9:0,grid10:0});
+  const [tab,setTab]=useState("upgrades");
+  const size=getSize(upgMap);
+  const cells=size*size;
+  const cellSz=Math.max(32,Math.min(58,Math.floor(290/size)));
+  const gap=3;
+
+  const mkStrips=(n)=>Array.from({length:n},()=>Array.from({length:STRIP_LEN+1},(_,si)=>SYM[Math.floor(Math.random()*SYM.length)].e));
+
+  const [strips,setStrips]=useState(()=>mkStrips(25));
+  const [finalIdxs,setFinalIdxs]=useState(()=>Array(25).fill(STRIP_LEN));
+  const [grid,setGrid]=useState(()=>Array(25).fill(null).map(()=>SYM[wpick(0)].id));
+  const [spinKey,setSpinKey]=useState(0);
+  const [spinning,setSpinning]=useState(false);
+  const [wins,setWins]=useState([]);
+  const [hitCells,setHitCells]=useState(new Set());
+  const [visibleWins,setVisibleWins]=useState(0);
+  const [message,setMessage]=useState("Spin to play!");
+  const [particles,setParticles]=useState([]);
+  const [history,setHistory]=useState([]);
+  const [highestWin,setHighestWin]=useState(0);
+
+  const pidRef=useRef(0);
+  const passiveRef=useRef(null);
+  const spinningRef=useRef(false);
+  const coinsRef=useRef(50);
+  const hwRef=useRef(0);
+  coinsRef.current=coins;
+  spinningRef.current=spinning;
+
+  const speedLv=upgMap.speed;
+  const spinDuration=Math.max(500,1400-speedLv*130);
+  const spinCost=Math.max(1,cells-24);
+  const passiveLv=upgMap.passive;
+  const passiveMs=Math.max(500,2000-speedLv*150);
+  const passivePerSec=highestWin>0&&passiveLv>0?Math.floor(highestWin*passiveLv*0.01*(1000/passiveMs)):0;
+  const lineDrawMs=180;
+  const lineStaggerMs=120;
+
+  useEffect(()=>{
+    if(wins.length===0){setVisibleWins(0);return;}
+    setVisibleWins(0);let i=0;
+    const iv=setInterval(()=>{i++;setVisibleWins(i);if(i>=wins.length)clearInterval(iv);},lineStaggerMs);
+    return()=>clearInterval(iv);
+  },[wins]);
+
+  const doSpin=useCallback(()=>{
+    if(spinningRef.current)return;
+    const cost=Math.max(1,getSize(upgMap)*getSize(upgMap)-24);
+    if(coinsRef.current<cost){setMessage("Not enough coins!");return;}
+    setCoins(c=>c-cost);
+    setSpinning(true);
+    setWins([]);setHitCells(new Set());setVisibleWins(0);
+    setMessage("Spinning...");
+    const newIdxs=Array.from({length:cells},()=>wpick(upgMap.luck));
+    const newGrid=newIdxs.map(i=>SYM[i].id);
+    const newStrips=Array.from({length:cells},(_,ci)=>
+      Array.from({length:STRIP_LEN+1},(__,si)=>si===STRIP_LEN?SYM[newIdxs[ci]].e:SYM[Math.floor(Math.random()*SYM.length)].e)
+    );
+    setStrips(newStrips);
+    setFinalIdxs(Array(cells).fill(0));
+    setSpinKey(k=>k+1);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>setFinalIdxs(Array(cells).fill(STRIP_LEN))));
+    setTimeout(()=>{
+      setGrid(newGrid);setSpinning(false);
+      const{wins:w,hitCells:hc}=calcWins(newGrid,size,upgMap.multiplier,upgMap.jackpot);
+      setHitCells(hc);setWins(w);
+      const totalPay=w.reduce((a,b)=>a+b.pay,0);
+      if(totalPay>0){
+        setCoins(c=>c+totalPay);setTotal(t=>t+totalPay);
+        setHighestWin(h=>{const nx=Math.max(h,totalPay);hwRef.current=nx;return nx;});
+        const hasMega=w.some(x=>x.isMega),hasJack=w.some(x=>x.isJack);
+        if(hasMega)setMessage("MEGA JACKPOT! +"+fmt(totalPay));
+        else if(hasJack)setMessage("JACKPOT! +"+fmt(totalPay));
+        else setMessage(w.length+" win"+(w.length>1?"s":"")+"! +"+fmt(totalPay));
+        const n=hasMega?28:hasJack?16:6;
+        const ps=Array.from({length:n},()=>({
+          id:pidRef.current++,x:15+Math.random()*70,y:5+Math.random()*50,
+          dx:(Math.random()-.5)*280,dy:-(80+Math.random()*200),
+          e:hasMega?["\uD83C\uDF1F","\uD83D\uDCB0","\u2728","\uD83C\uDF89"][Math.floor(Math.random()*4)]:
+            ["\uD83D\uDCB0","\u2728"][Math.floor(Math.random()*2)],
+        }));
+        setParticles(p=>[...p,...ps]);
+        setTimeout(()=>setParticles(p=>p.filter(x=>!ps.find(n=>n.id===x.id))),1600);
+      } else setMessage("No match - try again!");
+      setSpins(s=>s+1);
+      setHistory(h=>[{preview:newGrid.slice(0,6).map(id=>SYM.find(s=>s.id===id)?.e||"?").join(""),pay:totalPay,wins:w,id:Date.now()},...h.slice(0,9)]);
+    },spinDuration);
+  },[cells,size,upgMap,spinDuration]);
+
+  useEffect(()=>{
+    clearInterval(passiveRef.current);
+    if(passiveLv<=0)return;
+    passiveRef.current=setInterval(()=>{
+      const hw=hwRef.current;if(hw<=0)return;
+      const gain=Math.max(1,Math.floor(hw*passiveLv*0.01));
+      setCoins(c=>c+gain);setTotal(t=>t+gain);
+    },passiveMs);
+    return()=>clearInterval(passiveRef.current);
+  },[passiveLv,passiveMs]);
+
+  useEffect(()=>{
+    const newGrid=Array.from({length:cells},()=>SYM[wpick(0)].id);
+    const newStrips=Array.from({length:cells},(_,ci)=>{
+      const idx=SYM.findIndex(s=>s.id===newGrid[ci]);
+      return Array.from({length:STRIP_LEN+1},(__,si)=>si===STRIP_LEN?SYM[idx].e:SYM[Math.floor(Math.random()*SYM.length)].e);
+    });
+    setGrid(newGrid);setStrips(newStrips);setFinalIdxs(Array(cells).fill(STRIP_LEN));
+    setWins([]);setHitCells(new Set());setVisibleWins(0);
+  },[size,cells]);
+
+  const buyUpgrade=(id)=>{
+    const upg=UPGRADES.find(u=>u.id===id);
+    const lv=upgMap[id];
+    if(lv>=upg.maxLevel)return;
+    const cost=upgCost(upg,lv);
+    if(coins<cost)return;
+    setCoins(c=>c-cost);
+    setUpgMap(m=>({...m,[id]:m[id]+1}));
+  };
+
+  const hasMega=wins.some(w=>w.isMega),hasJack=wins.some(w=>w.isJack);
+  const gridW=size*cellSz+(size-1)*gap;
+
+  const css=`
+    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes floatUp{0%{opacity:1;transform:translate(0,0)}100%{opacity:0;transform:translate(var(--pdx),var(--pdy))}}
+    @keyframes jackGlow{0%,100%{text-shadow:0 0 12px #fbbf24,0 0 40px #fbbf24}50%{text-shadow:0 0 28px #fbbf24,0 0 80px #f59e0b}}
+    @keyframes megaGlow{0%,100%{text-shadow:0 0 20px #fff,0 0 60px #fbbf24}50%{text-shadow:0 0 40px #fff,0 0 100px #fbbf24}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+    @keyframes drawLine{to{stroke-dashoffset:0}}
+    @keyframes popDot{to{transform:scale(1)}}
+    @keyframes fadeInLabel{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}
+    .spin-btn:hover:not([disabled]){transform:scale(1.03);}
+    .spin-btn:active:not([disabled]){transform:scale(.97);}
+    .upg-btn:hover:not([disabled]){transform:translateY(-2px);}
+  `;
+
+  return h("div",{style:{minHeight:"100vh",background:"#05050e",fontFamily:"'Courier New',monospace",color:"#dde4f0",display:"flex",flexDirection:"column",alignItems:"center",padding:"14px 10px 52px",position:"relative",overflow:"hidden"}},
+    h("style",null,css),
+    h("div",{style:{position:"fixed",top:"3%",left:"-8%",width:340,height:340,borderRadius:"50%",background:"rgba(109,40,217,0.1)",filter:"blur(100px)",pointerEvents:"none"}}),
+    h("div",{style:{position:"fixed",bottom:"8%",right:"-5%",width:300,height:300,borderRadius:"50%",background:"rgba(14,116,144,0.15)",filter:"blur(90px)",pointerEvents:"none"}}),
+
+    particles.map(p=>h("div",{key:p.id,style:{position:"fixed",left:p.x+"%",top:p.y+"%","--pdx":p.dx+"px","--pdy":p.dy+"px",fontSize:22,animation:"floatUp 1.5s ease-out forwards",pointerEvents:"none",zIndex:999}},p.e)),
+
+    h("h1",{style:{fontSize:"clamp(20px,5vw,38px)",fontWeight:900,letterSpacing:".12em",margin:"0 0 2px",background:"linear-gradient(90deg,#fbbf24,#f59e0b,#fde68a,#f59e0b,#fbbf24)",backgroundSize:"200% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",animation:"shimmer 3s linear infinite"}},"LUCKY REELS"),
+    h("p",{style:{color:"#6366f1",fontSize:9,letterSpacing:".3em",margin:"0 0 12px",textTransform:"uppercase"}},size+"x"+size+" GRID \u00B7 MATCH TOUCHING SYMBOLS"),
+
+    h("div",{style:{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center",background:"#0d0d1f",border:"1px solid #1e1e3a",borderRadius:13,padding:"8px 16px",marginBottom:12}},
+      [{label:"COINS",val:fmt(coins),color:"#fbbf24"},{label:"SPINS",val:fmt(spins),color:"#c7d2fe"},{label:"BEST WIN",val:fmt(highestWin),color:"#fb923c"},{label:"PASSIVE",val:passivePerSec>0?"+"+fmt(passivePerSec)+"/s":"--",color:"#34d399"},{label:"COST",val:fmt(spinCost),color:"#f87171"}]
+      .map(({label,val,color})=>h("div",{key:label,style:{textAlign:"center",minWidth:52}},
+        h("div",{style:{fontSize:8,color:"#4b5563",letterSpacing:".18em"}},label),
+        h("div",{style:{fontSize:16,fontWeight:700,color,fontVariantNumeric:"tabular-nums"}},val)
+      ))
+    ),
+
+    h("div",{style:{background:"linear-gradient(160deg,#0d0d22,#08081a)",border:"2px solid #2a1a6e",borderRadius:20,padding:12,marginBottom:10,boxShadow:"0 8px 40px rgba(76,29,149,0.25)"}},
+      h("div",{style:{position:"relative",width:gridW,marginBottom:8}},
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat("+size+", "+cellSz+"px)",gap:gap}},
+          Array.from({length:cells},(_,i)=>h(ReelStrip,{key:i,strip:strips[i]||[SYM[0].e],finalIdx:finalIdxs[i]!=null?finalIdxs[i]:STRIP_LEN,spinning,highlight:hitCells.has(i),cellSz,spinKey}))
+        ),
+        wins.length>0&&!spinning&&h("div",{style:{position:"absolute",top:0,left:0,pointerEvents:"none"}},
+          h(WinLineOverlay,{wins,visibleCount:visibleWins,size,cellSz,gap,lineDrawMs,lineStaggerMs})
+        )
+      ),
+      h("div",{style:{minHeight:20,textAlign:"center",fontSize:12,fontWeight:700,letterSpacing:".05em",padding:"1px 0",marginBottom:6,color:hasMega?"#fbbf24":hasJack?"#fb923c":wins.length?"#4ade80":"#64748b",animation:hasMega?"megaGlow 1s infinite":hasJack?"jackGlow 1s infinite":"none"}},message),
+      h("button",{className:"spin-btn",onClick:doSpin,disabled:spinning||coins<spinCost,style:{width:"100%",padding:"11px 0",borderRadius:11,border:"none",cursor:spinning||coins<spinCost?"not-allowed":"pointer",background:spinning||coins<spinCost?"linear-gradient(135deg,#374151,#1f2937)":"linear-gradient(135deg,#7c3aed,#4f46e5)",color:spinning||coins<spinCost?"#6b7280":"#fff",fontSize:13,fontWeight:800,letterSpacing:".18em",textTransform:"uppercase",fontFamily:"'Courier New',monospace",boxShadow:spinning||coins<spinCost?"none":"0 4px 18px rgba(124,58,237,0.35)",transition:"transform .1s"}},
+        spinning?"SPINNING...":"SPIN - "+fmt(spinCost)+" coins"
+      )
+    ),
+
+    h("div",{style:{display:"flex",gap:4,marginBottom:10,width:"min(92vw,480px)"}},
+      ["upgrades","paytable","history"].map(t=>h("button",{key:t,onClick:()=>setTab(t),style:{flex:1,padding:"7px 0",borderRadius:9,border:"none",cursor:"pointer",background:tab===t?"linear-gradient(135deg,#3730a3,#4f46e5)":"#0d0d1f",color:tab===t?"#fff":"#64748b",fontSize:10,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",fontFamily:"'Courier New',monospace",outline:tab===t?"1px solid #6366f1":"1px solid #1e1e3a"}},
+        t+(t==="history"&&history.length>0?" ("+history.length+")":"")
+      ))
+    ),
+
+    tab==="upgrades"&&h("div",{style:{width:"min(92vw,480px)"}},
+      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},
+        UPGRADES.map(upg=>{
+          const lv=upgMap[upg.id],maxed=lv>=upg.maxLevel,cost=upgCost(upg,lv),can=!maxed&&coins>=cost;
+          const req=PREREQS[upg.id];
+          if(req&&upgMap[req]<1)return null;
+          return h("button",{key:upg.id,className:"upg-btn",onClick:()=>buyUpgrade(upg.id),disabled:!can,style:{background:maxed?"rgba(20,83,45,0.25)":can?"linear-gradient(135deg,#0f0f2a,#191930)":"#07070f",border:maxed?"1.5px solid #4ade80":can?"1.5px solid "+upg.color:"1.5px solid #161626",borderRadius:12,padding:"10px",cursor:can?"pointer":"not-allowed",textAlign:"left",color:"#e2e8f0",fontFamily:"'Courier New',monospace",boxShadow:can?"0 0 10px "+upg.color+"33":"none",opacity:!can&&!maxed?0.45:1,transition:"transform .15s"}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}},
+              h("span",{style:{fontSize:17}},upg.emoji),
+              h("span",{style:{fontSize:8,fontWeight:700,color:maxed?"#4ade80":upg.color}},maxed?"MAX":"LV "+lv+"/"+upg.maxLevel)
+            ),
+            h("div",{style:{fontSize:11,fontWeight:700,color:"#f1f5f9",marginBottom:1}},upg.name),
+            h("div",{style:{fontSize:9,color:"#475569",lineHeight:1.4,marginBottom:4}},upg.desc),
+            !maxed&&h("div",{style:{fontSize:11,fontWeight:700,color:can?"#fbbf24":"#2a2a3a"}},"\uD83D\uDCB0 "+fmt(cost))
+          );
+        })
+      )
+    ),
+
+    tab==="paytable"&&h("div",{style:{width:"min(92vw,480px)",animation:"fadeIn .3s"}},
+      h("div",{style:{background:"#0a0a1a",border:"1px solid #1e1e3a",borderRadius:12,padding:"12px 14px",marginBottom:8}},
+        h("div",{style:{fontSize:8,color:"#475569",letterSpacing:".2em",marginBottom:8}},"SYMBOLS (base value)"),
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5}},
+          SYM.map(s=>h("div",{key:s.id,style:{textAlign:"center",background:"#12122a",borderRadius:8,padding:"5px 2px"}},
+            h("div",{style:{fontSize:19}},s.e),
+            h("div",{style:{fontSize:10,color:"#fbbf24",fontWeight:700}},s.base)
+          ))
+        )
+      ),
+      h("div",{style:{background:"#0a0a1a",border:"1px solid #1e1e3a",borderRadius:12,padding:"12px 14px"}},
+        h("div",{style:{fontSize:8,color:"#475569",letterSpacing:".2em",marginBottom:8}},"HOW WINS WORK"),
+        ["Match 3+ of the same symbol","Symbols must be consecutive & touching","Touching = horizontal, vertical, or diagonal","Zigzag pattern needs 5+ symbols","Bigger groups = bigger pay","Fill the whole grid = MEGA JACKPOT"]
+        .map((rule,i)=>h("div",{key:i,style:{fontSize:10,color:"#64748b",marginBottom:4,display:"flex",gap:6}},
+          h("span",{style:{color:"#4f46e5",flexShrink:0}},(i+1)+"."),rule
+        ))
+      )
+    ),
+
+    tab==="history"&&h("div",{style:{width:"min(92vw,480px)",animation:"fadeIn .3s"}},
+      history.length===0&&h("div",{style:{textAlign:"center",color:"#374151",fontSize:12,padding:"20px"}},"No spins yet!"),
+      history.map(hs=>h("div",{key:hs.id,style:{background:"#0a0a1a",border:"1px solid #1e1e3a",borderRadius:10,padding:"8px 12px",marginBottom:6,borderLeft:hs.pay>0?"3px solid #4ade80":"3px solid #1e1e3a"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:hs.wins.length?4:0}},
+          h("div",{style:{fontSize:13,letterSpacing:1}},hs.preview),
+          h("div",{style:{fontWeight:700,fontSize:12,color:hs.pay>0?"#4ade80":"#475569"}},hs.pay>0?"+"+fmt(hs.pay):"no win")
+        ),
+        hs.wins.map((w,i)=>h("div",{key:i,style:{fontSize:9,color:"#475569",display:"flex",justifyContent:"space-between"}},
+          h("span",null,(SYM.find(s=>s.id===w.symId)?.e||"")+" "+w.lineName+" x"+w.count),
+          h("span",{style:{color:w.isMega?"#fbbf24":w.isJack?"#fb923c":"#4ade80"}},"+"+fmt(w.pay))
+        ))
+      ))
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(LuckyReels));
+</script>
 </body>
 </html>

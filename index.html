@@ -3,526 +3,548 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UK Planning Permission Checker</title>
+  <title>UK Planning Permission Checker 2025</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { min-height: 100vh; background: #0f1117; }
-    body { font-family: 'DM Sans', 'Segoe UI', sans-serif; color: #e8eaf0; }
-    select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { opacity: 1; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0f1117; }
-    ::-webkit-scrollbar-thumb { background: #2a3347; border-radius: 3px; }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fade-up { animation: fadeUp 0.35s ease forwards; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{min-height:100vh;background:#0a0d14}
+    body{font-family:'DM Sans','Segoe UI',sans-serif;color:#e8eaf0}
+    select{-webkit-appearance:none;-moz-appearance:none;appearance:none}
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:#0a0d14}
+    ::-webkit-scrollbar-thumb{background:#2a3347;border-radius:3px}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .fu{animation:fadeUp 0.32s ease forwards}
+    @keyframes barGrow{from{width:0}to{width:var(--w)}}
+    .bar-fill{animation:barGrow 0.9s cubic-bezier(.4,0,.2,1) forwards}
   </style>
 </head>
 <body>
-  <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
 
-  <script type="text/babel">
-    const C = {
-      bg: "#0f1117", panel: "#161b27", card: "#1c2333", border: "#2a3347",
-      accent: "#f5a623", accentDk: "#c4841a",
-      green: "#22c55e", red: "#ef4444", amber: "#f59e0b", blue: "#3b82f6",
-      text: "#e8eaf0", muted: "#8892a4", white: "#ffffff",
-    };
+const C={bg:"#0a0d14",panel:"#131720",card:"#181e2c",border:"#232d42",accent:"#f5a623",accentDk:"#c4841a",accentBg:"rgba(245,166,35,0.08)",green:"#22c55e",greenBg:"#052e16",greenBr:"#166534",red:"#ef4444",redBg:"#2d0a0a",redBr:"#7f1d1d",amber:"#f59e0b",amberBg:"#2d1f00",amberBr:"#78350f",blue:"#3b82f6",blueBg:"#0c1a2e",blueBr:"#1e3a5f",purple:"#a855f7",purpleBg:"#1a0a2e",purpleBr:"#5b21b6",text:"#e8eaf0",muted:"#7a8599",white:"#ffffff"};
+const CHEVRON=`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a8599' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`;
 
-    const RULES = {
-      detached: {
-        label: "Detached",
-        rear_single_pd: 4, rear_single_large: 8,
-        rear_double_pd: 3,
-        side_ok: true, side_max_ratio: 0.5, side_max_h: 4,
-        single_max_h: 4, double_max_h: 7,
-        loft_m3: 50,
-      },
-      semi: {
-        label: "Semi-Detached",
-        rear_single_pd: 3, rear_single_large: 6,
-        rear_double_pd: 3,
-        side_ok: true, side_max_ratio: 0.5, side_max_h: 4,
-        single_max_h: 4, double_max_h: 7,
-        loft_m3: 50,
-      },
-      terraced: {
-        label: "Terraced",
-        rear_single_pd: 3, rear_single_large: 6,
-        rear_double_pd: 3,
-        side_ok: false,
-        single_max_h: 4, double_max_h: 7,
-        loft_m3: 40,
-      },
-      flat: { label: "Flat / Maisonette" },
-    };
+const PROP={
+  detached:{label:"Detached",rear_pd:4,rear_large:8,rear2_pd:3,side:true,side_ratio:0.5,side_h:4,h1:4,h2:7,loft:50},
+  semi:{label:"Semi-Detached",rear_pd:3,rear_large:6,rear2_pd:3,side:true,side_ratio:0.5,side_h:4,h1:4,h2:7,loft:50},
+  terraced:{label:"Terraced",rear_pd:3,rear_large:6,rear2_pd:3,side:false,h1:4,h2:7,loft:40},
+  flat:{label:"Flat / Maisonette"}
+};
 
-    const STEPS = ["Property", "Location", "Extension", "Results"];
+const GLAZING={
+  single:  {label:"Single Glazing",       u:5.8,savingVsBase:0,   annualCost:580,co2:2.4,note:"Pre-1980s standard. Very poor — fails Part L completely."},
+  double_4:{label:"Double (4mm gap)",     u:3.1,savingVsBase:28,  annualCost:415,co2:1.7,note:"Old-style double glazing — still poor insulation."},
+  double:  {label:"Double Glazing",       u:1.6,savingVsBase:53,  annualCost:272,co2:1.1,note:"Standard modern DG. Meets Building Regs Part L minimum (1.6 W/m²K)."},
+  double_ag:{label:"Double + Argon Fill", u:1.2,savingVsBase:64,  annualCost:203,co2:0.8,note:"Argon-filled double glazing. Best value for money — highly recommended."},
+  triple:  {label:"Triple Glazing",       u:0.8,savingVsBase:76,  annualCost:139,co2:0.6,note:"Highest performance. Required for Passivhaus. Future-proof choice."}
+};
 
-    /* ── tiny helpers ── */
-    function badge(color, text) {
-      const map = {
-        green: { bg:"#052e16", br:"#166534", tx: C.green },
-        red:   { bg:"#2d0a0a", br:"#7f1d1d", tx: C.red },
-        amber: { bg:"#2d1f00", br:"#78350f", tx: C.amber },
-        blue:  { bg:"#0c1a2e", br:"#1e3a5f", tx: C.blue },
-      };
-      const s = map[color] || map.blue;
-      return (
-        <span style={{
-          display:"inline-block", padding:"3px 10px", borderRadius:20,
-          background:s.bg, border:`1px solid ${s.br}`, color:s.tx,
-          fontSize:11, fontWeight:700, letterSpacing:0.4, whiteSpace:"nowrap",
-        }}>{text}</span>
-      );
-    }
+const ROOF_MAT={
+  concrete:  {label:"Concrete Tiles",         cost:"£25–40/m²",  life:"30–50 yrs", weight:"Heavy", pd:true, note:"Most common in the UK. Must match existing in appearance for PD."},
+  clay:      {label:"Clay Tiles / Pantiles",  cost:"£40–80/m²",  life:"60–100 yrs",weight:"Heavy", pd:true, note:"Traditional look. Required or preferred in many conservation areas."},
+  slate_nat: {label:"Natural Slate",          cost:"£60–120/m²", life:"100+ yrs",  weight:"Medium",pd:true, note:"Premium option. Required for listed buildings and many conservation areas."},
+  slate_fib: {label:"Fibre Cement Slate",     cost:"£30–55/m²",  life:"30–40 yrs", weight:"Light", pd:true, note:"More affordable slate-look alternative. Good appearance match."},
+  metal:     {label:"Standing Seam Metal",    cost:"£80–150/m²", life:"50–80 yrs", weight:"Light", pd:false,note:"Modern appearance — likely needs planning permission in most residential areas."},
+  green:     {label:"Green / Sedum Roof",     cost:"£100–200/m²",life:"40–50 yrs", weight:"Heavy", pd:false,note:"Needs planning permission. Structural loading check essential."},
+  flat_felt: {label:"Flat Roof — GRP/Felt",  cost:"£20–40/m²",  life:"20–25 yrs", weight:"Light", pd:true, note:"Standard flat roof finish. Permitted on extensions under PD."},
+  flat_epdm: {label:"Flat Roof — EPDM Rubber",cost:"£30–50/m²", life:"30–50 yrs", weight:"Light", pd:true, note:"Best-value flat roof membrane. Highly recommended over felt."}
+};
 
-    /* ── Step Indicator ── */
-    function StepBar({ step }) {
-      return (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", marginBottom:28 }}>
-          {STEPS.map((s, i) => (
-            <React.Fragment key={s}>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                <div style={{
-                  width:30, height:30, borderRadius:"50%", fontWeight:700, fontSize:13,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  background: i < step ? C.green : i === step ? C.accent : C.border,
-                  color: i <= step ? "#000" : C.muted,
-                  border: i === step ? `2px solid ${C.accentDk}` : "2px solid transparent",
-                  transition:"all 0.3s",
-                }}>
-                  {i < step ? "✓" : i + 1}
-                </div>
-                <span style={{ fontSize:10, whiteSpace:"nowrap", color: i===step ? C.accent : C.muted, fontWeight: i===step?700:400 }}>{s}</span>
+/* ─── SHARED COMPONENTS ─── */
+function Badge({color,children}){
+  const m={green:[C.greenBg,C.greenBr,C.green],red:[C.redBg,C.redBr,C.red],amber:[C.amberBg,C.amberBr,C.amber],blue:[C.blueBg,C.blueBr,C.blue],purple:[C.purpleBg,C.purpleBr,C.purple]};
+  const [bg,br,tx]=m[color]||m.blue;
+  return <span style={{display:"inline-block",padding:"3px 9px",borderRadius:20,background:bg,border:`1px solid ${br}`,color:tx,fontSize:11,fontWeight:700,letterSpacing:0.3,whiteSpace:"nowrap"}}>{children}</span>;
+}
+function ResultCard({title,status,detail,fee,note,children}){
+  const sc={permitted:"green","prior-approval":"amber","planning-required":"red","not-applicable":"blue",info:"purple"};
+  const sl={permitted:"✓ Permitted Development","prior-approval":"⚠ Prior Approval Needed","planning-required":"✗ Full Planning Required","not-applicable":"— Always Required",info:"ℹ Information"};
+  return(
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:detail||children?8:0,flexWrap:"wrap"}}>
+        <span style={{fontWeight:700,color:C.white,fontSize:14,flex:1}}>{title}</span>
+        <Badge color={sc[status]}>{sl[status]}</Badge>
+      </div>
+      {detail&&<p style={{color:C.muted,fontSize:13,lineHeight:1.65,marginBottom:fee||note||children?8:0}}>{detail}</p>}
+      {children}
+      {fee&&<div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:6,padding:"9px 12px",marginTop:8}}><span style={{color:C.accent,fontWeight:700,fontSize:12}}>💷 Fees: </span><span style={{color:C.text,fontSize:12}}>{fee}</span></div>}
+      {note&&<p style={{color:C.amber,fontSize:12,marginTop:8,fontStyle:"italic",lineHeight:1.5}}>ℹ {note}</p>}
+    </div>
+  );
+}
+
+/* Heat loss bars */
+function HeatBars({activeKey}){
+  const barColors={single:C.red,double_4:"#f97316",double:C.amber,double_ag:C.green,triple:"#22d3ee"};
+  const base=GLAZING.single.annualCost;
+  return(
+    <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:16,marginTop:8}}>
+      <p style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:14}}>🌡 Heat Loss & Energy Comparison — Per m² of Window</p>
+      {Object.entries(GLAZING).map(([k,v])=>{
+        const col=barColors[k]||C.amber;
+        const pct=Math.round((v.annualCost/base)*100);
+        const isActive=k===activeKey;
+        return(
+          <div key={k} style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+              <span style={{fontSize:12,color:isActive?C.accent:C.text,fontWeight:isActive?700:400}}>{v.label}{isActive?" ◀ your choice":""}</span>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <span style={{fontSize:11,color:C.muted,fontFamily:"'DM Mono',monospace"}}>U={v.u} W/m²K</span>
+                <span style={{fontSize:12,fontWeight:700,color:col,fontFamily:"'DM Mono',monospace"}}>£{v.annualCost}/yr</span>
               </div>
-              {i < STEPS.length - 1 && (
-                <div style={{ width:44, height:2, marginBottom:18, background: i < step ? C.green : C.border, transition:"all 0.3s" }} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      );
-    }
-
-    /* ── ResultCard ── */
-    function ResultCard({ title, status, detail, fee, note }) {
-      const sc = { permitted:"green", "prior-approval":"amber", "planning-required":"red", "not-applicable":"blue" };
-      const sl = {
-        permitted:"✓ Permitted Development",
-        "prior-approval":"⚠ Prior Approval Needed",
-        "planning-required":"✗ Full Planning Required",
-        "not-applicable":"— Always Required",
-      };
-      return (
-        <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:16, marginBottom:12 }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10, marginBottom:detail?8:0, flexWrap:"wrap" }}>
-            <span style={{ fontWeight:700, color:C.white, fontSize:14 }}>{title}</span>
-            {badge(sc[status], sl[status])}
-          </div>
-          {detail && <p style={{ color:C.muted, fontSize:13, lineHeight:1.6, marginBottom:fee||note?8:0 }}>{detail}</p>}
-          {fee && (
-            <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 12px", marginTop:6 }}>
-              <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>💷 Fees: </span>
-              <span style={{ color:C.text, fontSize:12 }}>{fee}</span>
             </div>
-          )}
-          {note && <p style={{ color:C.amber, fontSize:12, marginTop:8, fontStyle:"italic" }}>ℹ {note}</p>}
-        </div>
-      );
-    }
-
-    /* ── Main logic ── */
-    function computeResults(f) {
-      const r = RULES[f.propertyType];
-      if (!r) return [];
-      const res = [];
-      const protect = f.locationType !== "standard";
-      const protLabel = { conservation:"Conservation Area", listed:"Listed Building", nationalPark:"National Park / AONB", articleFour:"Article 4 Direction" }[f.locationType] || "protected area";
-
-      /* Flat */
-      if (f.propertyType === "flat") {
-        res.push({ title:"Extension Eligibility", status:"planning-required",
-          detail:"Flats and maisonettes have no Permitted Development rights. Full planning permission is always required.",
-          fee:"Householder planning application: £528. Building Regulations: ~£880–£1,400.",
-          note:"Check your lease — most also require freeholder consent before any works." });
-        return res;
-      }
-
-      /* Protected location */
-      if (protect) {
-        res.push({ title:`Protected Location — ${protLabel}`, status:"planning-required",
-          detail:`Properties in ${protLabel}s have restricted or removed Permitted Development rights. Full planning permission is required even for small extensions.`,
-          fee:`Full householder planning application: £528${f.locationType==="listed"?" + Listed Building Consent (free)":""}. Building Regulations: ~£880–£1,400.`,
-          note:"Pre-application advice from your Local Planning Authority (~£50–£250) is strongly recommended." });
-        // still add building regs card
-        res.push({ title:"Building Regulations", status:"not-applicable",
-          detail:"Always required regardless of planning status. Covers structure, fire safety, insulation, and drainage.",
-          fee:"Building Control fee: ~£880 (under 10m²) to £1,400 (over 40m²). Can use Council or private Approved Inspector." });
-        return res;
-      }
-
-      const depth = f.depth, width = f.width, height = f.height, propW = f.propertyWidth;
-      const isSingle = f.stories === "single";
-
-      /* FRONT */
-      if (f.direction === "front") {
-        res.push({ title:"Front Extension", status:"planning-required",
-          detail:"Front extensions almost always require full planning permission as they affect the street scene. No Permitted Development route applies.",
-          fee:"Householder planning application: £528. Building Regulations: ~£880–£1,100.",
-          note:"Even a small front porch over 3m² or 3m high requires planning permission." });
-      }
-
-      /* REAR */
-      if (f.direction === "rear") {
-        if (isSingle) {
-          const pdLim = r.rear_single_pd;
-          const largeLim = r.rear_single_large;
-          if (depth <= pdLim && height <= r.single_max_h) {
-            res.push({ title:`Rear Single-Storey Extension (${depth}m deep)`, status:"permitted",
-              detail:`Within the ${pdLim}m Permitted Development limit for ${r.label} houses. No planning application needed — provided the extension covers ≤50% of the original garden area and materials match the existing house.`,
-              fee:`No planning fee. Building Regulations: ~£880–£1,100. Strongly recommended: Lawful Development Certificate (£294) for legal proof.`,
-              note: height > r.single_max_h ? `⚠ Height ${height}m exceeds the ${r.single_max_h}m PD limit — check with your LPA.` : null });
-          } else if (largeLim && depth <= largeLim) {
-            res.push({ title:`Rear Single-Storey Extension (${depth}m deep)`, status:"prior-approval",
-              detail:`Exceeds the standard ${pdLim}m PD limit but within the ${largeLim}m Larger Home Extension Scheme. You must apply for Prior Approval — neighbours get 21 days to object.`,
-              fee:`Prior Approval application: £240. Building Regulations: ~£880–£1,100. Total: ~£1,120–£1,340.`,
-              note:"Submit to your Local Planning Authority. Decision expected within 42 days." });
-          } else {
-            res.push({ title:`Rear Single-Storey Extension (${depth}m deep)`, status:"planning-required",
-              detail:`Exceeds the maximum ${largeLim||pdLim}m limit for ${r.label} houses under any PD route. Full planning permission required.`,
-              fee:`Householder planning application: £528. Building Regulations: ~£1,100–£1,400. Total: ~£1,628–£1,928.`,
-              note:"Expect ~8 weeks for a decision. An architect or planning consultant is recommended." });
-          }
-        } else {
-          // two-storey rear
-          const pdLim = r.rear_double_pd || 3;
-          if (depth <= pdLim && height <= r.double_max_h) {
-            res.push({ title:`Rear Two-Storey Extension (${depth}m deep)`, status:"permitted",
-              detail:`Within PD limits for two-storey rear extensions. Must be ≤3m deep, ≤7m high, within 7m of rear boundary, and no side windows within 1m of the boundary.`,
-              fee:`No planning fee. Building Regulations: ~£1,100–£1,400. Lawful Development Certificate recommended: £294.` });
-          } else {
-            res.push({ title:`Rear Two-Storey Extension (${depth}m deep)`, status:"planning-required",
-              detail:`Exceeds PD limits (max 3m depth, 7m height for two-storey). Note: the Larger Home Extension Scheme only covers single-storey extensions.`,
-              fee:`Householder planning application: £528. Building Regulations: ~£1,100–£1,400.` });
-          }
-        }
-      }
-
-      /* SIDE */
-      if (f.direction === "side") {
-        if (f.propertyType === "terraced") {
-          res.push({ title:"Side Extension", status:"planning-required",
-            detail:"Terraced houses cannot use Permitted Development for side extensions. Full planning permission is always required.",
-            fee:`Householder planning application: £528. Building Regulations: ~£880–£1,100.` });
-        } else {
-          const maxW = propW * 0.5;
-          const wOk = width <= maxW;
-          const hOk = height <= r.side_max_h;
-          if (isSingle && wOk && hOk) {
-            res.push({ title:`Side Single-Storey Extension (${width}m wide)`, status:"permitted",
-              detail:`Within PD limits. Side extensions must not exceed 50% of the original house width (your max: ${maxW.toFixed(1)}m) and must be single-storey (max ${r.side_max_h}m high).`,
-              fee:`No planning fee. Building Regulations: ~£880–£1,100. Lawful Development Certificate recommended: £294.` });
-          } else {
-            const reasons = [];
-            if (!isSingle) reasons.push("two-storey side extensions need planning permission");
-            if (!wOk) reasons.push(`width ${width}m exceeds 50% of property width (max ${maxW.toFixed(1)}m)`);
-            if (!hOk) reasons.push(`height ${height}m exceeds ${r.side_max_h}m PD limit`);
-            res.push({ title:`Side Extension (${width}m wide, ${f.stories}-storey)`, status:"planning-required",
-              detail:`Exceeds PD limits: ${reasons.join("; ")}.`,
-              fee:`Householder planning application: £528. Building Regulations: ~£880–£1,400.` });
-          }
-        }
-      }
-
-      /* Always: building regs */
-      res.push({ title:"Building Regulations", status:"not-applicable",
-        detail:"Required for all extensions regardless of whether planning permission is needed. Covers structural integrity, fire safety, energy efficiency, and drainage.",
-        fee:"Building Control fee: ~£880 (under 10m²) to £1,400 (over 40m²). Council or private Approved Inspector both accepted." });
-
-      return res;
-    }
-
-    /* ── App ── */
-    function App() {
-      const [step, setStep] = React.useState(0);
-      const [form, setForm] = React.useState({
-        propertyType: "detached",
-        locationType: "standard",
-        postcode: "",
-        direction: "rear",
-        stories: "single",
-        depth: 4, width: 4, height: 3, propertyWidth: 8,
-      });
-
-      const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-      const canNext = () => {
-        if (step === 0) return !!form.propertyType;
-        if (step === 1) return !!form.locationType;
-        if (step === 2) return form.depth > 0 && form.width > 0 && form.height > 0;
-        return true;
-      };
-
-      const results = step === 3 ? computeResults(form) : [];
-
-      const inputStyle = {
-        width:"100%", padding:"11px 13px", background:C.card,
-        border:`1px solid ${C.border}`, borderRadius:8,
-        color:C.text, fontSize:15, outline:"none",
-      };
-
-      const labelStyle = {
-        display:"block", color:C.muted, fontSize:11, fontWeight:600,
-        textTransform:"uppercase", letterSpacing:1, marginBottom:6,
-      };
-
-      function NumInput({ label, k, help, min=0.5, max=30 }) {
-        return (
-          <div style={{ marginBottom:14 }}>
-            <label style={labelStyle}>{label}</label>
-            {help && <p style={{ color:C.muted, fontSize:11, marginBottom:5 }}>{help}</p>}
-            <div style={{ display:"flex" }}>
-              <input type="number" value={form[k]} min={min} max={max} step={0.1}
-                onChange={e => set(k, parseFloat(e.target.value)||0)}
-                style={{ ...inputStyle, borderRadius:"8px 0 0 8px", flex:1 }} />
-              <div style={{ padding:"11px 13px", background:C.border, borderRadius:"0 8px 8px 0", color:C.muted, fontSize:13, fontWeight:600 }}>m</div>
+            <div style={{background:C.card,borderRadius:4,height:9,overflow:"hidden",border:`1px solid ${C.border}`}}>
+              <div className="bar-fill" style={{"--w":`${pct}%`,height:"100%",background:col,borderRadius:4,width:0}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+              <span style={{fontSize:10,color:C.muted}}>{pct}% of single-glazing cost · CO₂ {v.co2} kg/m²/yr</span>
+              {v.savingVsBase>0&&<span style={{fontSize:10,color:C.green}}>Save {v.savingVsBase}% vs single</span>}
             </div>
           </div>
         );
+      })}
+      <div style={{marginTop:12,padding:"10px 13px",background:C.card,border:`1px solid ${C.border}44`,borderRadius:8}}>
+        <p style={{color:C.muted,fontSize:12,lineHeight:1.55}}><strong style={{color:C.text}}>Building Regs Part L:</strong> Replacement windows must achieve U ≤ 1.6 W/m²K. New windows in extensions must achieve U ≤ 1.4 W/m²K. Single and old double glazing both fail these requirements.</p>
+        <p style={{color:C.muted,fontSize:12,lineHeight:1.55,marginTop:6}}><strong style={{color:C.text}}>Real-world note:</strong> A typical 3-bed house has ~15m² of glazing. Upgrading from single to argon-filled double saves ~£5,655/yr in heating costs across all windows.</p>
+      </div>
+      <p style={{color:C.muted,fontSize:11,marginTop:8,fontStyle:"italic"}}>{GLAZING[activeKey]?.note}</p>
+    </div>
+  );
+}
+
+/* Roof material table */
+function MaterialTable(){
+  return(
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr style={{borderBottom:`1px solid ${C.border}`}}>
+            {["Material","Cost/m²","Lifespan","PD?","Notes"].map(h=>(
+              <th key={h} style={{padding:"6px 8px",color:C.muted,fontWeight:600,textAlign:"left",whiteSpace:"nowrap"}}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.values(ROOF_MAT).map((m,i)=>(
+            <tr key={i} style={{borderBottom:`1px solid ${C.border}33`,background:i%2===0?C.panel:"transparent"}}>
+              <td style={{padding:"7px 8px",color:C.white,fontWeight:600,whiteSpace:"nowrap"}}>{m.label}</td>
+              <td style={{padding:"7px 8px",color:C.text,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>{m.cost}</td>
+              <td style={{padding:"7px 8px",color:C.muted,whiteSpace:"nowrap"}}>{m.life}</td>
+              <td style={{padding:"7px 8px"}}><span style={{color:m.pd?C.green:C.red,fontWeight:700,fontSize:14}}>{m.pd?"✓":"✗"}</span></td>
+              <td style={{padding:"7px 8px",color:C.muted,lineHeight:1.4,minWidth:160}}>{m.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ─── RESULT COMPUTERS ─── */
+function extResults(f){
+  const r=PROP[f.propertyType]; const res=[];
+  if(!r) return res;
+  if(f.propertyType==="flat"){res.push({title:"Extension Eligibility",status:"planning-required",detail:"Flats and maisonettes have no Permitted Development rights. Full planning permission is always required.",fee:"Householder planning application: £528. Building Regs: ~£880–£1,400.",note:"Check your lease — freeholder consent is almost always also required."});return res;}
+  if(f.locationType!=="standard"){
+    const lbl={conservation:"Conservation Area",listed:"Listed Building",nationalPark:"National Park/AONB",articleFour:"Article 4 Direction"}[f.locationType]||"protected area";
+    res.push({title:`Protected Location — ${lbl}`,status:"planning-required",detail:`In a ${lbl}, Permitted Development rights are restricted or removed. Full planning permission is required.`,fee:`Householder application: £528${f.locationType==="listed"?" + Listed Building Consent (free)":""}. Building Regs: ~£880–£1,400.`,note:"Pre-application advice from your LPA (~£50–£250) is strongly recommended."});
+    res.push({title:"Building Regulations",status:"not-applicable",detail:"Always required regardless of planning status.",fee:"Building Control: ~£880–£1,400 depending on size."});
+    return res;
+  }
+  const {depth,width,height,propertyWidth:propW,direction,stories}=f;
+  const single=stories==="single";
+  if(direction==="front"){
+    res.push({title:"Front Extension",status:"planning-required",detail:"Front extensions affect the street scene and always require full planning permission. No PD route exists.",fee:"Householder application: £528. Building Regs: ~£880–£1,100.",note:"A front porch over 3m² or 3m high also needs planning permission."});
+  }
+  if(direction==="rear"){
+    if(single){
+      const pd=r.rear_pd,lg=r.rear_large;
+      if(depth<=pd&&height<=r.h1) res.push({title:`Rear Single-Storey (${depth}m deep)`,status:"permitted",detail:`Within the ${pd}m PD limit for ${r.label} houses. No planning needed — provided: ≤50% of original garden covered, materials match existing house, no raised platforms.`,fee:`No planning fee. Building Regs: ~£880–£1,100. Strongly recommended: Lawful Development Certificate £294.`});
+      else if(lg&&depth<=lg) res.push({title:`Rear Single-Storey (${depth}m deep)`,status:"prior-approval",detail:`Exceeds the standard ${pd}m PD limit but within the Larger Home Extension Scheme (${lg}m for ${r.label}). Prior Approval required — neighbours get 21 days to object.`,fee:`Prior Approval: £240. Building Regs: ~£880–£1,100. Total: ~£1,120–£1,340.`,note:"Decision within 42 days. Neighbour objections can block this route."});
+      else res.push({title:`Rear Single-Storey (${depth}m deep)`,status:"planning-required",detail:`Exceeds the maximum ${lg||pd}m limit. Full planning permission required.`,fee:`Householder application: £528. Building Regs: ~£1,100–£1,400.`,note:"Allow ~8 weeks for a decision. An architect or planning consultant is recommended."});
+    } else {
+      if(depth<=r.rear2_pd&&height<=r.h2) res.push({title:`Rear Two-Storey (${depth}m deep)`,status:"permitted",detail:"Within PD limits: ≤3m deep, ≤7m high, within 7m of rear boundary. No side-facing windows within 1m of the boundary.",fee:"No planning fee. Building Regs: ~£1,100–£1,400. Lawful Dev Cert recommended: £294."});
+      else res.push({title:`Rear Two-Storey (${depth}m deep)`,status:"planning-required",detail:"Exceeds PD limits (max 3m deep, 7m high). The Larger Home Extension Scheme does not apply to two-storey.",fee:"Householder application: £528. Building Regs: ~£1,100–£1,400."});
+    }
+  }
+  if(direction==="side"){
+    if(f.propertyType==="terraced") res.push({title:"Side Extension",status:"planning-required",detail:"Terraced houses cannot use PD for side extensions. Full planning permission is always required.",fee:"Householder application: £528. Building Regs: ~£880–£1,100."});
+    else{
+      const maxW=propW*r.side_ratio,wOk=width<=maxW,hOk=height<=r.side_h;
+      if(single&&wOk&&hOk) res.push({title:`Side Single-Storey (${width}m wide)`,status:"permitted",detail:`Within PD limits — must not exceed 50% of house width (max ${maxW.toFixed(1)}m) and single-storey only (max ${r.side_h}m high).`,fee:"No planning fee. Building Regs: ~£880–£1,100. Lawful Dev Cert recommended: £294."});
+      else{
+        const why=[];
+        if(!single) why.push("two-storey side extensions always need planning permission");
+        if(!wOk) why.push(`width ${width}m exceeds 50% of house width (max ${maxW.toFixed(1)}m)`);
+        if(!hOk) why.push(`height ${height}m exceeds ${r.side_h}m PD limit`);
+        res.push({title:"Side Extension",status:"planning-required",detail:`Exceeds PD limits: ${why.join("; ")}.`,fee:"Householder application: £528. Building Regs: ~£880–£1,400."});
       }
+    }
+  }
+  const area=depth*width, maxGlaz=area*0.25;
+  res.push({title:"Window Limits in Your Extension",status:"not-applicable",detail:`Building Regs Part L limits glazing in extensions to 25% of floor area. For your ${area.toFixed(1)}m² extension: maximum glazing = ${maxGlaz.toFixed(1)}m². Side-facing windows must be obscure-glazed if within 1m of a boundary.`,note:"This is a Building Regs requirement — breaching it fails Building Control inspection regardless of planning status."});
+  res.push({title:"Building Regulations",status:"not-applicable",detail:"Required for all extensions. Covers structural integrity, fire escape, insulation (Part L), drainage, ventilation.",fee:"Building Control: ~£880 (under 10m²) to £1,400 (over 40m²)."});
+  return res;
+}
 
-      const cardBtnStyle = (active) => ({
-        width:"100%", padding:"12px 13px", marginBottom:8,
-        background: active ? "rgba(245,166,35,0.08)" : C.card,
-        border: `2px solid ${active ? C.accent : C.border}`,
-        borderRadius:8, cursor:"pointer", textAlign:"left",
-        display:"flex", alignItems:"center", gap:12,
-        transition:"all 0.2s",
-      });
+function winResults(f){
+  const res=[]; const protect=f.locationType!=="standard";
+  if(protect){
+    const lbl={conservation:"Conservation Area",listed:"Listed Building",nationalPark:"National Park/AONB",articleFour:"Article 4 Direction"}[f.locationType]||"protected area";
+    res.push({title:`Protected Location — ${lbl}`,status:"planning-required",detail:`In ${lbl}s, even like-for-like window replacement may need planning permission. Adding new windows almost certainly does.`,fee:`Householder application: £528${f.locationType==="listed"?" + Listed Building Consent (free)":""}. Use FENSA installer for glazing compliance.`,note:"Always check with your LPA before ordering any windows."});
+    return res;
+  }
+  const {winLocation:loc,winFloor:floor,winType:type}=f;
+  if(type==="rooflight"){
+    if(loc==="rear") res.push({title:"Rear Rooflight (Velux-style)",status:"permitted",detail:"Rear rooflights are permitted — must not protrude more than 150mm above the existing roof slope and must not exceed the ridge height. No fixed limit on the number of rear rooflights.",fee:"No planning fee. Building Regs apply for ventilation in habitable rooms. FENSA installer self-certifies.",note:"Rooflights lose more heat per m² than vertical windows — triple-glazed rooflights strongly recommended."});
+    else res.push({title:`${loc==="front"?"Front":"Side"} Rooflight`,status:"planning-required",detail:`${loc==="front"?"Front":"Side"}-facing rooflights alter the appearance of the roof elevation and require full planning permission.`,fee:"Householder application: £528."});
+  }
+  if(type==="dormer"){
+    const propR=PROP[f.propertyType]||{loft:50,label:"this property"};
+    if(loc==="rear") res.push({title:`Rear Dormer — ${propR.label}`,status:"permitted",detail:`Rear dormers are permitted within the combined loft volume allowance: ${propR.loft}m³ for ${propR.label}. Must not exceed the existing ridge height, set back ≥20cm from eaves, and use matching materials.`,fee:`No planning fee (within volume limits). Building Regs: ~£1,100–£1,600.`,note:`Total ${propR.loft}m³ covers ALL loft additions combined. Side-facing dormer windows must be obscure-glazed and non-opening below 1.7m from floor.`});
+    else res.push({title:`${loc==="front"?"Front":"Side"} Dormer`,status:"planning-required",detail:`${loc==="front"?"Front":"Side"}-facing dormers always require full planning permission — visible from the street.`,fee:"Householder application: £528. Building Regs: ~£1,100–£1,600.",note:"Side dormers on end-of-terrace properties are also treated as visible from the street."});
+  }
+  if(type==="bay"){
+    if(loc==="rear") res.push({title:"Rear Bay Window",status:"permitted",detail:"Rear bay windows are generally permitted under PD as minor extensions — provided they don't exceed PD rear extension depth limits and don't cover more than 50% of garden.",fee:"No planning fee. Building Regs may apply for structural work. FENSA registration required.",note:"The bay counts towards your overall PD extension volume allowance."});
+    else if(loc==="front") res.push({title:"Front Bay Window",status:"prior-approval",detail:"Front bay windows may or may not require planning permission — depends on whether they materially alter the building's appearance. Many LPAs require planning for front bays.",fee:"If planning needed: householder application £528. FENSA required for glazing.",note:"On a uniform terrace, a new bay window may be refused as it alters the streetscape character."});
+    else res.push({title:"Side Bay Window",status:"planning-required",detail:"Side bay windows typically require planning permission as they create a visible side projection.",fee:"Householder application: £528."});
+  }
+  if(type==="standard"){
+    if(loc==="rear") res.push({title:`New Rear Window (${floor} floor)`,status:"permitted",detail:"Rear windows at any floor level are permitted under PD. No limit on the number of rear windows. No planning permission required.",fee:"No planning fee. FENSA-registered installer self-certifies. Non-FENSA: Building Regs ~£200–£400.",note:"Rear windows must not cause unacceptable overlooking — this can be a civil matter even if planning is not required."});
+    else if(loc==="side"&&floor==="ground") res.push({title:"New Side Window (Ground Floor)",status:"permitted",detail:"Ground-floor side windows are generally permitted under PD provided they don't cause significant overlooking. Windows within 1m of a boundary must be obscure-glazed.",fee:"No planning fee. FENSA registration required.",note:"Check your boundary distance — windows within 1m must be obscure-glazed fixed."});
+    else if(loc==="side"&&floor!=="ground") res.push({title:`New Side Window (${floor==="upper"?"Upper Floor":"Attic"})`,status:"planning-required",detail:"Upper-floor and attic side-facing windows require planning permission — OR must be obscure-glazed and fixed (non-opening below 1.7m from floor level) to comply with PD conditions. Clear-opening upper-floor side windows always need planning.",fee:"If planning needed: £528. Obscure-glazed fixed window: no planning fee, FENSA registration only.",note:"Obscure-glazed fixed side windows are the most common PD-compliant way to add light to an upper side wall — permitted under Class A(3)(b) GPDO."});
+    else res.push({title:`New Front Window (${floor} floor)`,status:"planning-required",detail:"Adding new windows to the front elevation (facing the highway) typically requires planning permission as it materially alters the building's appearance.",fee:"Householder application: £528.",note:"Replacing an existing front window like-for-like does NOT need planning permission — just use a competent glazer."});
+  }
+  res.push({title:"Building Regs — Glazing (Part L)",status:"not-applicable",detail:"All replacement and new windows must meet minimum U-values: 1.6 W/m²K for replacements, 1.4 W/m²K for extensions/new-build. Use a FENSA or CERTASS registered installer to self-certify without a separate Building Control application.",fee:"FENSA installer: self-certification included. Non-FENSA: Building Regs application ~£200–£400."});
+  return res;
+}
 
-      return (
-        <div style={{ minHeight:"100vh", background:C.bg, padding:"24px 16px" }}>
-          <div style={{ maxWidth:560, margin:"0 auto" }}>
+function roofResults(f){
+  const res=[]; const protect=f.locationType!=="standard";
+  const mat=ROOF_MAT[f.roofMaterial]||ROOF_MAT.concrete;
+  const lbl={conservation:"Conservation Area",listed:"Listed Building",nationalPark:"National Park/AONB",articleFour:"Article 4 Direction"}[f.locationType]||"protected area";
+  if(protect){
+    res.push({title:`Protected Location — ${lbl}`,status:"planning-required",detail:`In ${lbl}s, any material change to roofing typically requires planning permission. Materials must match or harmonise with the existing building and street character.`,fee:`Householder application: £528${f.locationType==="listed"?" + Listed Building Consent (free)":""}.`,note:"Natural slate or clay tiles are almost always required in conservation areas."});
+  }
+  const work=f.roofWork;
+  if(work==="retile"){
+    if(mat.pd&&!protect) res.push({title:`Re-Tiling with ${mat.label}`,status:"permitted",detail:`Re-tiling with ${mat.label} is permitted under PD provided it appears similar to the existing roof. Like-for-like retiling never needs planning permission.`,fee:`No planning fee. No Building Regs for like-for-like retiling. Material cost: ${mat.cost}.`,note:`${mat.label} lifespan: ${mat.life}. ${mat.note}`});
+    else res.push({title:`Re-Tiling with ${mat.label}`,status:"planning-required",detail:`${protect?`Protected location requires planning permission.`:`${mat.label} has a noticeably different appearance and may require planning permission.`}`,fee:"Householder application: £528.",note:mat.note});
+  }
+  if(work==="material_change"){
+    if(mat.pd&&!protect) res.push({title:`Changing to ${mat.label}`,status:"prior-approval",detail:`Changing roof material is generally permitted if it appears similar to the existing — but a significant change may attract scrutiny from neighbours or the LPA. A Lawful Development Certificate is strongly recommended.`,fee:"Lawful Development Certificate (proposed): £294. No planning fee if similar appearance.",note:mat.note});
+    else res.push({title:`Changing to ${mat.label}`,status:"planning-required",detail:`${mat.label} represents a significant visual change${protect?` and the property is in a ${lbl}`:""}. Full planning permission required.`,fee:"Householder application: £528.",note:mat.note});
+  }
+  if(work==="convert"){
+    const propR=PROP[f.propertyType]||{loft:50,label:"your property"};
+    res.push({title:`Loft Conversion — ${propR.label}`,status:"permitted",detail:`Loft conversions are permitted under PD within the volume allowance: ${propR.loft}m³ for ${propR.label}. Must not exceed existing ridge height, use similar materials, and not alter the roof slope facing the highway.`,fee:`No planning fee (within limits). Building Regs required: ~£1,100–£1,800 (structure, fire, escape window, insulation).`,note:"A structural engineer is always required. Any dormers count towards the same volume allowance."});
+    res.push({title:"Roof Insulation — Part L Requirements",status:"not-applicable",detail:"Loft conversions require: minimum 270mm mineral wool between/over joists (cold roof) OR 100mm rigid insulation between rafters + 60mm below (warm roof). U-value must achieve ≤0.18 W/m²K for the new roof element.",fee:"Included in Building Control application above.",note:"Poor loft insulation accounts for ~25% of heat loss in a UK home. This is the single most cost-effective energy improvement available."});
+  }
+  if(work==="dormer"){
+    const propR=PROP[f.propertyType]||{loft:50,label:"your property"};
+    const dloc=f.roofDormerLoc||"rear";
+    if(dloc==="rear"&&!protect) res.push({title:`Rear Dormer — ${propR.label}`,status:"permitted",detail:`Rear dormers are permitted within the ${propR.loft}m³ combined loft volume allowance. Must not exceed existing ridge height, set back ≥20cm from eaves, and roof material must match existing house.`,fee:`No planning fee (within limits). Building Regs: ~£1,100–£1,600.`,note:"Side-facing dormer windows must be obscure-glazed and non-opening below 1.7m from finished floor level."});
+    else res.push({title:`${dloc==="rear"?"Rear Dormer (Protected)":dloc==="front"?"Front Dormer":"Side Dormer"}`,status:"planning-required",detail:`${dloc!=="rear"?"Front and side dormers always require full planning permission.":protect?`Protected location — planning required for all roof alterations.`:""}`,fee:"Householder application: £528. Building Regs: ~£1,100–£1,600."});
+  }
+  res.push({title:"Roof Material Comparison",status:"info",detail:"All common UK roof tile materials, costs, lifespans and PD eligibility.",_mat:true});
+  return res;
+}
 
-            {/* Header */}
-            <div style={{ textAlign:"center", marginBottom:28 }}>
-              <div style={{
-                display:"inline-flex", alignItems:"center", gap:6,
-                background:C.panel, border:`1px solid ${C.border}`,
-                borderRadius:30, padding:"5px 14px", marginBottom:14,
-              }}>
-                <span style={{ color:C.accent, fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>🇬🇧 UK Planning Checker 2025</span>
-              </div>
-              <h1 style={{ fontSize:24, fontWeight:700, color:C.white, lineHeight:1.2, marginBottom:6 }}>
-                Do You Need Planning Permission?
-              </h1>
-              <p style={{ color:C.muted, fontSize:13 }}>England · 2025 rules · Instant verdict · Real fee estimates</p>
+/* ─── APP ─── */
+function App(){
+  const [pt,setPt]=React.useState(null);
+  const [step,setStep]=React.useState(0);
+  const [form,setForm]=React.useState({
+    propertyType:"detached",locationType:"standard",postcode:"",
+    direction:"rear",stories:"single",depth:4,width:4,height:3,propertyWidth:8,
+    winLocation:"rear",winFloor:"ground",winType:"standard",glazingType:"double_ag",
+    roofWork:"retile",roofMaterial:"concrete",roofDormerLoc:"rear"
+  });
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const inp={width:"100%",padding:"11px 13px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:14,outline:"none"};
+  const lbl={display:"block",color:C.muted,fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:5};
+  const sel={...inp,cursor:"pointer",backgroundImage:CHEVRON,backgroundRepeat:"no-repeat",backgroundPosition:"right 13px center"};
+
+  function N({label:l,k,help,min=0.5,max=30,mb=14}){
+    return(
+      <div style={{marginBottom:mb}}>
+        <label style={lbl}>{l}</label>
+        {help&&<p style={{color:C.muted,fontSize:11,marginBottom:4}}>{help}</p>}
+        <div style={{display:"flex"}}>
+          <input type="number" value={form[k]} min={min} max={max} step={0.1} onChange={e=>set(k,parseFloat(e.target.value)||0)} style={{...inp,borderRadius:"8px 0 0 8px",flex:1}}/>
+          <div style={{padding:"11px 13px",background:C.border,borderRadius:"0 8px 8px 0",color:C.muted,fontSize:13,fontWeight:600}}>m</div>
+        </div>
+      </div>
+    );
+  }
+  function SB({label:l,sub,dot,active,onClick}){
+    return(
+      <button onClick={onClick} style={{width:"100%",padding:"10px 12px",marginBottom:6,background:active?C.accentBg:C.card,border:`2px solid ${active?C.accent:C.border}`,borderRadius:8,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:11,transition:"all 0.2s"}}>
+        {dot&&<div style={{width:8,height:8,borderRadius:"50%",background:dot,flexShrink:0}}/>}
+        <div><div style={{fontWeight:600,color:C.white,fontSize:13}}>{l}</div>{sub&&<div style={{color:C.muted,fontSize:12}}>{sub}</div>}</div>
+      </button>
+    );
+  }
+
+  const stepLabels={extension:["Property","Details","Results"],windows:["Property","Windows","Results"],roof:["Property","Roof","Results"]};
+  const steps=stepLabels[pt]||["Property","Details","Results"];
+
+  function StepBar(){
+    return(
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:22}}>
+        {steps.map((s,i)=>(
+          <React.Fragment key={s}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <div style={{width:28,height:28,borderRadius:"50%",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",background:i<step?C.green:i===step?C.accent:C.border,color:i<=step?"#000":C.muted,border:i===step?`2px solid ${C.accentDk}`:"2px solid transparent",transition:"all 0.3s"}}>{i<step?"✓":i+1}</div>
+              <span style={{fontSize:10,whiteSpace:"nowrap",color:i===step?C.accent:C.muted,fontWeight:i===step?700:400}}>{s}</span>
             </div>
+            {i<steps.length-1&&<div style={{width:38,height:2,marginBottom:16,background:i<step?C.green:C.border,transition:"all 0.3s"}}/>}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
 
-            <StepBar step={step} />
+  const results=React.useMemo(()=>{
+    if(step!==2) return [];
+    if(pt==="extension") return extResults(form);
+    if(pt==="windows") return winResults(form);
+    if(pt==="roof") return roofResults(form);
+    return [];
+  },[step,pt,form]);
 
-            <div key={step} className="fade-up" style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:14, padding:22 }}>
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,padding:"18px 14px"}}>
+      <div style={{maxWidth:580,margin:"0 auto"}}>
 
-              {/* STEP 0 */}
-              {step === 0 && (
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{display:"inline-flex",alignItems:"center",background:C.panel,border:`1px solid ${C.border}`,borderRadius:30,padding:"4px 14px",marginBottom:10}}>
+            <span style={{color:C.accent,fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>🇬🇧 UK Planning Checker 2025</span>
+          </div>
+          <h1 style={{fontSize:21,fontWeight:700,color:C.white,lineHeight:1.2,marginBottom:4}}>Do You Need Planning Permission?</h1>
+          <p style={{color:C.muted,fontSize:12}}>England · 2025 rules · Extensions · Windows · Roof & Materials · Heat Loss Data</p>
+        </div>
+
+        {/* MENU */}
+        {!pt&&(
+          <div key="menu" className="fu">
+            <p style={{color:C.muted,fontSize:13,textAlign:"center",marginBottom:14}}>What are you planning?</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+              {[{v:"extension",icon:"🏗",l:"Extension",s:"Rear, side or front"},{v:"windows",icon:"🪟",l:"Windows",s:"New windows, dormers, rooflights"},{v:"roof",icon:"🏠",l:"Roof & Tiles",s:"Retile, loft, materials"}].map(o=>(
+                <button key={o.v} onClick={()=>{setPt(o.v);setStep(0);}} style={{padding:"16px 12px",textAlign:"left",cursor:"pointer",background:C.card,border:`2px solid ${C.border}`,borderRadius:12,transition:"all 0.2s"}}>
+                  <div style={{fontSize:24,marginBottom:6}}>{o.icon}</div>
+                  <div style={{fontWeight:700,color:C.white,fontSize:14,marginBottom:2}}>{o.l}</div>
+                  <div style={{color:C.muted,fontSize:11,lineHeight:1.4}}>{o.s}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:10,padding:13}}>
+              <p style={{color:C.muted,fontSize:12,lineHeight:1.6}}>⚡ <strong style={{color:C.text}}>Quick facts:</strong> ~60–70% of UK home improvements don't need planning permission. But getting it wrong can mean enforcement action, fines, or being forced to demolish. This tool tells you exactly where you stand under 2025 English rules.</p>
+            </div>
+          </div>
+        )}
+
+        {/* STEPS */}
+        {pt&&(
+          <div>
+            <StepBar/>
+            <div key={`${pt}-${step}`} className="fu" style={{background:C.panel,border:`1px solid ${C.border}`,borderRadius:14,padding:20}}>
+
+              {/* ── STEP 0: Property (shared) ── */}
+              {step===0&&(
                 <div>
-                  <h2 style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>Your Property Type</h2>
-                  <p style={{ color:C.muted, fontSize:13, marginBottom:18 }}>Rules differ significantly based on property type.</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                    {[
-                      { v:"detached",  icon:"🏠", label:"Detached",         sub:"Standalone house" },
-                      { v:"semi",      icon:"🏘", label:"Semi-Detached",    sub:"Joined one side" },
-                      { v:"terraced",  icon:"🏚", label:"Terraced",         sub:"Joined both sides" },
-                      { v:"flat",      icon:"🏢", label:"Flat/Maisonette",  sub:"No PD rights" },
-                    ].map(o => (
-                      <button key={o.v} onClick={() => set("propertyType", o.v)} style={{
-                        padding:"15px 12px",
-                        background: form.propertyType===o.v ? "rgba(245,166,35,0.12)" : C.card,
-                        border:`2px solid ${form.propertyType===o.v ? C.accent : C.border}`,
-                        borderRadius:10, cursor:"pointer", textAlign:"left", transition:"all 0.2s",
-                      }}>
-                        <div style={{ fontSize:22, marginBottom:4 }}>{o.icon}</div>
-                        <div style={{ fontWeight:700, color:C.white, fontSize:14 }}>{o.label}</div>
-                        <div style={{ color:C.muted, fontSize:12 }}>{o.sub}</div>
+                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:3}}>Your Property</h2>
+                  <p style={{color:C.muted,fontSize:13,marginBottom:14}}>Rules differ significantly based on property type and location.</p>
+                  <label style={lbl}>Property Type</label>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+                    {[{v:"detached",icon:"🏠",l:"Detached"},{v:"semi",icon:"🏘",l:"Semi-Detached"},{v:"terraced",icon:"🏚",l:"Terraced"},{v:"flat",icon:"🏢",l:"Flat/Maisonette"}].map(o=>(
+                      <button key={o.v} onClick={()=>set("propertyType",o.v)} style={{padding:"11px 10px",background:form.propertyType===o.v?C.accentBg:C.card,border:`2px solid ${form.propertyType===o.v?C.accent:C.border}`,borderRadius:8,cursor:"pointer",textAlign:"left",transition:"all 0.2s"}}>
+                        <div style={{fontSize:19,marginBottom:3}}>{o.icon}</div>
+                        <div style={{fontWeight:700,color:C.white,fontSize:13}}>{o.l}</div>
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* STEP 1 */}
-              {step === 1 && (
-                <div>
-                  <h2 style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>Location & Protections</h2>
-                  <p style={{ color:C.muted, fontSize:13, marginBottom:18 }}>Your location can remove Permitted Development rights entirely.</p>
-
-                  <div style={{ marginBottom:16 }}>
-                    <label style={labelStyle}>📮 Postcode (optional)</label>
-                    <input type="text" placeholder="e.g. SW1A 1AA" value={form.postcode}
-                      onChange={e => set("postcode", e.target.value.toUpperCase())}
-                      style={inputStyle} />
-                    <p style={{ color:C.muted, fontSize:11, marginTop:4 }}>Used for reference in your results summary</p>
+                  <div style={{marginBottom:12}}>
+                    <label style={lbl}>📮 Postcode (optional)</label>
+                    <input type="text" placeholder="e.g. SW1A 1AA" value={form.postcode} onChange={e=>set("postcode",e.target.value.toUpperCase())} style={inp}/>
                   </div>
-
-                  <label style={labelStyle}>🗺 Location Type</label>
-                  {[
-                    { v:"standard",     dot:C.green, label:"Standard residential area",  sub:"Full PD rights apply" },
-                    { v:"conservation", dot:C.amber, label:"Conservation Area",          sub:"Restricted PD rights" },
-                    { v:"nationalPark", dot:C.amber, label:"National Park or AONB",      sub:"Restricted PD rights" },
-                    { v:"listed",       dot:C.red,   label:"Listed Building",            sub:"No PD rights at all" },
-                    { v:"articleFour",  dot:C.amber, label:"Article 4 Direction",        sub:"Council-removed PD rights" },
-                  ].map(o => (
-                    <button key={o.v} onClick={() => set("locationType", o.v)} style={cardBtnStyle(form.locationType===o.v)}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:o.dot, flexShrink:0 }} />
-                      <div>
-                        <div style={{ fontWeight:600, color:C.white, fontSize:14 }}>{o.label}</div>
-                        <div style={{ color:C.muted, fontSize:12 }}>{o.sub}</div>
-                      </div>
-                    </button>
+                  <label style={lbl}>🗺 Location Type</label>
+                  {[{v:"standard",dot:C.green,l:"Standard residential area",s:"Full PD rights apply"},{v:"conservation",dot:C.amber,l:"Conservation Area",s:"Restricted PD rights"},{v:"nationalPark",dot:C.amber,l:"National Park or AONB",s:"Restricted PD rights"},{v:"listed",dot:C.red,l:"Listed Building",s:"No PD rights at all"},{v:"articleFour",dot:C.amber,l:"Article 4 Direction",s:"Council-removed PD rights"}].map(o=>(
+                    <SB key={o.v} label={o.l} sub={o.s} dot={o.dot} active={form.locationType===o.v} onClick={()=>set("locationType",o.v)}/>
                   ))}
                 </div>
               )}
 
-              {/* STEP 2 */}
-              {step === 2 && (
+              {/* ── STEP 1: Extension ── */}
+              {step===1&&pt==="extension"&&(
                 <div>
-                  <h2 style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>Extension Details</h2>
-                  <p style={{ color:C.muted, fontSize:13, marginBottom:18 }}>Enter your planned dimensions to check against the legal limits.</p>
-
-                  <label style={labelStyle}>🧭 Direction</label>
-                  <select value={form.direction} onChange={e => set("direction", e.target.value)}
-                    style={{ ...inputStyle, cursor:"pointer", marginBottom:14,
-                      backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238892a4' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                      backgroundRepeat:"no-repeat", backgroundPosition:"right 14px center" }}>
+                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:3}}>Extension Details</h2>
+                  <p style={{color:C.muted,fontSize:13,marginBottom:14}}>Enter your dimensions — we compare against UK legal limits.</p>
+                  <label style={lbl}>🧭 Direction</label>
+                  <select value={form.direction} onChange={e=>set("direction",e.target.value)} style={{...sel,marginBottom:12}}>
                     <option value="rear">Rear — Back of the house</option>
                     <option value="side">Side — Beside the house</option>
-                    <option value="front">Front — In front of the building line</option>
+                    <option value="front">Front — In front of building line</option>
                   </select>
-
-                  <label style={labelStyle}>🏗 Storeys</label>
-                  <select value={form.stories} onChange={e => set("stories", e.target.value)}
-                    style={{ ...inputStyle, cursor:"pointer", marginBottom:14,
-                      backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238892a4' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                      backgroundRepeat:"no-repeat", backgroundPosition:"right 14px center" }}>
+                  <label style={lbl}>🏗 Storeys</label>
+                  <select value={form.stories} onChange={e=>set("stories",e.target.value)} style={{...sel,marginBottom:12}}>
                     <option value="single">Single storey (ground floor only)</option>
                     <option value="double">Two storeys</option>
                   </select>
-
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                    <NumInput label="Depth" k="depth" help="How far it extends out" />
-                    <NumInput label="Width" k="width" help="Width of the extension" />
-                    <NumInput label="Height" k="height" help="Height to roof ridge" min={1} max={15} />
-                    <NumInput label="Property Width" k="propertyWidth" help="Total width of house" max={40} />
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    <N label="Depth" k="depth" help="How far it extends out"/>
+                    <N label="Width" k="width" help="Width of the extension"/>
+                    <N label="Height" k="height" help="Height to roof ridge" min={1} max={15}/>
+                    <N label="House Width" k="propertyWidth" help="Total width of your house" max={40}/>
                   </div>
-
-                  <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:11, marginTop:4 }}>
-                    <p style={{ color:C.muted, fontSize:12 }}>
-                      📐 <strong style={{ color:C.text }}>Floor area: {(form.depth * form.width).toFixed(1)}m²</strong>
-                      {form.stories==="double" ? ` (×2 storeys = ${(form.depth*form.width*2).toFixed(1)}m² total)` : ""}
-                    </p>
+                  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:10,marginTop:2}}>
+                    <p style={{color:C.muted,fontSize:12}}>📐 <strong style={{color:C.text}}>Floor area: {(form.depth*form.width).toFixed(1)}m²</strong>{form.stories==="double"?` — two storeys = ${(form.depth*form.width*2).toFixed(1)}m² total`:""}</p>
                   </div>
                 </div>
               )}
 
-              {/* STEP 3 */}
-              {step === 3 && (
+              {/* ── STEP 1: Windows ── */}
+              {step===1&&pt==="windows"&&(
                 <div>
-                  <h2 style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>Your Planning Assessment</h2>
+                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:3}}>Window Details</h2>
+                  <p style={{color:C.muted,fontSize:13,marginBottom:14}}>Location, floor, and type determine what permissions apply.</p>
+                  <label style={lbl}>📍 Which elevation?</label>
+                  <select value={form.winLocation} onChange={e=>set("winLocation",e.target.value)} style={{...sel,marginBottom:12}}>
+                    <option value="rear">Rear — Back of the house</option>
+                    <option value="side">Side — Side wall</option>
+                    <option value="front">Front — Facing the street</option>
+                  </select>
+                  <label style={lbl}>🏠 Which floor / room?</label>
+                  <select value={form.winFloor} onChange={e=>set("winFloor",e.target.value)} style={{...sel,marginBottom:12}}>
+                    <option value="ground">Ground floor (living room, kitchen, dining)</option>
+                    <option value="upper">Upper floor (bedroom, bathroom, landing)</option>
+                    <option value="attic">Attic / Loft room</option>
+                  </select>
+                  <label style={lbl}>🪟 Window Type</label>
+                  <select value={form.winType} onChange={e=>set("winType",e.target.value)} style={{...sel,marginBottom:12}}>
+                    <option value="standard">Standard window (casement, sash, fixed)</option>
+                    <option value="bay">Bay window</option>
+                    <option value="rooflight">Rooflight / Velux (flat in roof slope)</option>
+                    <option value="dormer">Dormer window (box structure on roof)</option>
+                  </select>
+                  <label style={lbl}>🔆 Glazing Type</label>
+                  <select value={form.glazingType} onChange={e=>set("glazingType",e.target.value)} style={{...sel,marginBottom:4}}>
+                    <option value="single">Single Glazing — U=5.8 — fails Building Regs</option>
+                    <option value="double_4">Double 4mm gap — U=3.1 — old, poor insulation</option>
+                    <option value="double">Double Glazing — U=1.6 — meets Part L minimum</option>
+                    <option value="double_ag">Double + Argon — U=1.2 — recommended ★</option>
+                    <option value="triple">Triple Glazing — U=0.8 — best performance</option>
+                  </select>
+                  <p style={{color:C.muted,fontSize:11}}>Full heat loss comparison with real cost data shown in results</p>
+                </div>
+              )}
 
-                  {/* Summary pills */}
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:18,
-                    padding:"9px 13px", background:C.card, border:`1px solid ${C.border}`, borderRadius:8 }}>
-                    {[
-                      RULES[form.propertyType]?.label,
-                      form.direction + " extension",
-                      form.stories + " storey",
-                      `${form.depth}m deep × ${form.width}m wide × ${form.height}m high`,
-                      form.locationType !== "standard" ? form.locationType : null,
-                      form.postcode || null,
-                    ].filter(Boolean).map((t, i) => (
-                      <span key={i} style={{ padding:"2px 9px", background:C.panel, border:`1px solid ${C.border}`,
-                        borderRadius:20, fontSize:11, color:C.muted }}>{t}</span>
+              {/* ── STEP 1: Roof ── */}
+              {step===1&&pt==="roof"&&(
+                <div>
+                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:3}}>Roof & Material Details</h2>
+                  <p style={{color:C.muted,fontSize:13,marginBottom:14}}>What roof work are you planning?</p>
+                  <label style={lbl}>🏗 Type of Work</label>
+                  <select value={form.roofWork} onChange={e=>set("roofWork",e.target.value)} style={{...sel,marginBottom:12}}>
+                    <option value="retile">Re-tiling (same or similar material)</option>
+                    <option value="material_change">Changing roof material (different appearance)</option>
+                    <option value="convert">Loft conversion (creating a habitable room)</option>
+                    <option value="dormer">Adding a dormer window</option>
+                  </select>
+                  {form.roofWork==="dormer"&&(
+                    <>
+                      <label style={lbl}>📍 Dormer Location</label>
+                      <select value={form.roofDormerLoc||"rear"} onChange={e=>set("roofDormerLoc",e.target.value)} style={{...sel,marginBottom:12}}>
+                        <option value="rear">Rear</option>
+                        <option value="front">Front</option>
+                        <option value="side">Side</option>
+                      </select>
+                    </>
+                  )}
+                  <label style={lbl}>🪵 Roof Material</label>
+                  <select value={form.roofMaterial} onChange={e=>set("roofMaterial",e.target.value)} style={{...sel,marginBottom:10}}>
+                    <option value="concrete">Concrete Tiles — £25–40/m² — most common</option>
+                    <option value="clay">Clay Tiles / Pantiles — £40–80/m²</option>
+                    <option value="slate_nat">Natural Slate — £60–120/m² — premium</option>
+                    <option value="slate_fib">Fibre Cement Slate — £30–55/m²</option>
+                    <option value="metal">Standing Seam Metal — £80–150/m² — modern</option>
+                    <option value="green">Green / Sedum Roof — £100–200/m²</option>
+                    <option value="flat_felt">Flat Roof — GRP/Felt — £20–40/m²</option>
+                    <option value="flat_epdm">Flat Roof — EPDM Rubber — £30–50/m² ★</option>
+                  </select>
+                  {(()=>{const m=ROOF_MAT[form.roofMaterial];if(!m)return null;return(
+                    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:12}}>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:6}}>
+                        {[["Cost/m²",m.cost,C.text],["Lifespan",m.life,C.text],["PD Eligible",m.pd?"✓ Yes":"✗ No",m.pd?C.green:C.red]].map(([k,v,c])=>(
+                          <div key={k}><div style={{fontSize:10,color:C.muted}}>{k}</div><div style={{fontWeight:700,color:c,fontSize:13}}>{v}</div></div>
+                        ))}
+                      </div>
+                      <p style={{color:C.muted,fontSize:12,fontStyle:"italic"}}>{m.note}</p>
+                    </div>
+                  );})()}
+                </div>
+              )}
+
+              {/* ── STEP 2: Results ── */}
+              {step===2&&(
+                <div>
+                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:4}}>Your Planning Assessment</h2>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14,padding:"8px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8}}>
+                    {[PROP[form.propertyType]?.label,form.locationType!=="standard"?form.locationType:null,form.postcode||null,
+                      pt==="extension"?`${form.direction} ${form.stories}-storey ${form.depth}×${form.width}×${form.height}m`:null,
+                      pt==="windows"?`${form.winLocation} ${form.winFloor} ${form.winType}`:null,
+                      pt==="roof"?`${form.roofWork} — ${ROOF_MAT[form.roofMaterial]?.label}`:null
+                    ].filter(Boolean).map((t,i)=>(
+                      <span key={i} style={{padding:"2px 8px",background:C.panel,border:`1px solid ${C.border}`,borderRadius:20,fontSize:11,color:C.muted}}>{t}</span>
                     ))}
                   </div>
 
-                  {results.map((r, i) => <ResultCard key={i} {...r} />)}
+                  {results.map((r,i)=>(
+                    r._mat
+                      ? <ResultCard key={i} title="Roof Material Comparison" status="info" detail="All common UK roof materials — costs, lifespans, and PD eligibility at a glance."><MaterialTable/></ResultCard>
+                      : <ResultCard key={i} {...r}/>
+                  ))}
 
-                  {/* Useful links */}
-                  <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:16, marginTop:8 }}>
-                    <p style={{ fontWeight:700, color:C.text, fontSize:13, marginBottom:10 }}>🔗 Useful Official Links</p>
-                    {[
-                      ["Planning Portal", "https://www.planningportal.co.uk"],
-                      ["Check permitted development rules (Gov.uk)", "https://www.gov.uk/permitted-development-rights"],
-                      ["Find your Local Planning Authority", "https://www.gov.uk/find-local-council"],
-                      ["Submit planning application online", "https://www.planningportal.co.uk/permission/next-steps/apply"],
-                    ].map(([label, url]) => (
-                      <a key={url} href={url} target="_blank" rel="noopener noreferrer"
-                        style={{ display:"block", color:C.blue, fontSize:13, marginBottom:6, textDecoration:"none",
-                          borderBottom:`1px solid ${C.border}`, paddingBottom:6 }}>
-                        ↗ {label}
-                      </a>
+                  {pt==="windows"&&<HeatBars activeKey={form.glazingType}/>}
+
+                  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:13,marginTop:10}}>
+                    <p style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:8}}>🔗 Official Resources</p>
+                    {[["Planning Portal — Apply Online","https://www.planningportal.co.uk"],["Gov.uk — Permitted Development Rights","https://www.gov.uk/permitted-development-rights"],["Find Your Local Planning Authority","https://www.gov.uk/find-local-council"],["FENSA — Registered Glazing Installers","https://www.fensa.org.uk"],["Building Regs Approved Documents","https://www.gov.uk/guidance/building-regulations-and-approved-documents-index"]].map(([l,u])=>(
+                      <a key={u} href={u} target="_blank" rel="noopener noreferrer" style={{display:"block",color:C.blue,fontSize:13,marginBottom:5,textDecoration:"none",borderBottom:`1px solid ${C.border}33`,paddingBottom:5}}>↗ {l}</a>
                     ))}
                   </div>
-
-                  <div style={{ marginTop:12, padding:"11px 13px", background:C.card,
-                    border:`1px solid ${C.border}`, borderRadius:8 }}>
-                    <p style={{ color:C.muted, fontSize:11, lineHeight:1.5 }}>
-                      ⚠ <strong style={{ color:C.text }}>Disclaimer:</strong> General guidance based on English Permitted Development rules (GPDO 2015, fees updated April 2025). Always verify with your Local Planning Authority or a qualified planning consultant before starting work. Rules differ in Wales, Scotland, and Northern Ireland.
-                    </p>
+                  <div style={{marginTop:10,padding:"10px 13px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8}}>
+                    <p style={{color:C.muted,fontSize:11,lineHeight:1.5}}>⚠ <strong style={{color:C.text}}>Disclaimer:</strong> General guidance only — England, GPDO 2015, fees as of April 2025. Always verify with your Local Planning Authority or a qualified planning consultant. Rules differ in Wales, Scotland and Northern Ireland.</p>
                   </div>
                 </div>
               )}
 
-              {/* Nav buttons */}
-              <div style={{ display:"flex", gap:10, marginTop:22 }}>
-                {step > 0 && (
-                  <button onClick={() => setStep(s => s-1)} style={{
-                    flex:1, padding:"12px 0", background:C.card, border:`1px solid ${C.border}`,
-                    borderRadius:8, color:C.text, fontWeight:600, cursor:"pointer", fontSize:14,
-                  }}>← Back</button>
-                )}
-                {step < 3 && (
-                  <button onClick={() => { if (canNext()) setStep(s => s+1); }}
-                    disabled={!canNext()}
-                    style={{
-                      flex:2, padding:"12px 0",
-                      background: canNext() ? C.accent : C.border, border:"none", borderRadius:8,
-                      color: canNext() ? "#000" : C.muted,
-                      fontWeight:700, cursor: canNext() ? "pointer" : "not-allowed",
-                      fontSize:14, transition:"all 0.2s",
-                    }}>
-                    {step === 2 ? "Check Planning Rules →" : "Continue →"}
-                  </button>
-                )}
-                {step === 3 && (
-                  <button onClick={() => setStep(0)} style={{
-                    flex:1, padding:"12px 0", background:C.card, border:`1px solid ${C.border}`,
-                    borderRadius:8, color:C.text, fontWeight:600, cursor:"pointer", fontSize:14,
-                  }}>Start Over</button>
-                )}
+              {/* Nav */}
+              <div style={{display:"flex",gap:10,marginTop:18}}>
+                <button onClick={()=>{if(step===0){setPt(null);setStep(0);}else setStep(s=>s-1);}} style={{flex:1,padding:"12px 0",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontWeight:600,cursor:"pointer",fontSize:13}}>
+                  {step===0?"← Menu":"← Back"}
+                </button>
+                {step<2&&<button onClick={()=>setStep(s=>s+1)} style={{flex:2,padding:"12px 0",background:C.accent,border:"none",borderRadius:8,color:"#000",fontWeight:700,cursor:"pointer",fontSize:13}}>{step===1?"Check Planning Rules →":"Continue →"}</button>}
+                {step===2&&<button onClick={()=>{setPt(null);setStep(0);}} style={{flex:1,padding:"12px 0",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontWeight:600,cursor:"pointer",fontSize:13}}>Start Over</button>}
               </div>
             </div>
-
-            <p style={{ textAlign:"center", color:C.border, fontSize:11, marginTop:18 }}>
-              Based on Town and Country Planning (GPDO) England Order 2015 · Fees correct as of April 2025
-            </p>
           </div>
-        </div>
-      );
-    }
+        )}
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+        <p style={{textAlign:"center",color:C.border,fontSize:11,marginTop:14}}>GPDO England 2015 · Building Regs Part L · Fees correct April 2025</p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
 </body>
 </html>
